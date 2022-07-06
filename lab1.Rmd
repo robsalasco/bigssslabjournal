@@ -38,12 +38,45 @@ Last compiled on `r format(Sys.time(), '%B, %Y')`
 <br>
 
 ----
-  
-This is just an example page of your lab journal.
-You can journal the assignments of the first day here.
-  
+
+**For this BIGSSS we will use election results (at the polling station-level) to tap into the degree of polarization. What kind of polarization are we measuring and trying to explain?**
+
+Political polarization based in the opinions of different parties about a certain topic. We have to put the parties somewhere in the political spectrum and evaluate the degree of polarization.
+
+**How would you determine the position of parties on specific political topics with data that is readily available? And, which topic(s) would you use to determine the level of political polarization (in the NL)?**
+
+Votations in the parlament, their manifestos or media sources (public debates). 
+
+- inmigration attitudes or opinions on migrants
+- crime attitudes... How to solve the problem?
+
+**Which theoretical article on political polarization should we definitely all read for this summer school? Please provide a reference and motivate your answer.**
+
+I've found a working paper on SocArXiv  (https://osf.io/preprints/socarxiv/e5vp8/) which looks interesting to me because it resumes a good number of measures of polarization. The value of the paper I think it's related to  how it provides a guide to deal with different approximations on different scales because when we talk about polarization there's no one-fits-all choice.
+
+**Please summarize some of the key or defining features of (a measure of) polarization.**
+
+Joan Esteban and Debraj Ray propose a measure to quantify the distance of clustered groups in a distribution. Can be more than two cluster but the members share same attributes with others but they're different from the members of others clusters so groups are heterogeneus inside but heterogeneus among others.
+
+
+```{r eval=FALSE}
+  if (method == "sq") {
+    
+    distmatrix <- rbind(pbar, positions)
+    
+    distances = matrix(NA, nrow(distmatrix), ncol(distmatrix))
+    
+    for (i in 1:nrow(distmatrix)) {
+      for (j in 1:nrow(distmatrix))
+      {
+        distances[i,]= (distmatrix[i,] - distmatrix[j,])^2
+      }
+    }
+  }
+```
 
 ----
+
 
 
 
