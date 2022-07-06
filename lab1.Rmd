@@ -1,7 +1,7 @@
 ---
 title: "Journal 1"
 #bibliography: references.bib
-author: "Rob Franken"
+author: "Rob Salas"
 output: 
   html_document:
     css: tweaks.css

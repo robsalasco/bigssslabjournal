@@ -9,7 +9,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Rob Franken" />
+<meta name="author" content="Rob Salas" />
 
 
 <title>Journal 1</title>
@@ -361,7 +361,7 @@ div.tocify {
 
 
 <h1 class="title toc-ignore">Journal 1</h1>
-<h4 class="author">Rob Franken</h4>
+<h4 class="author">Rob Salas</h4>
 
 </div>
 
@@ -369,8 +369,53 @@ div.tocify {
 <p>Last compiled on July, 2022</p>
 <p><br></p>
 <hr />
-<p>This is just an example page of your lab journal. You can journal the
-assignments of the first day here.</p>
+<p><strong>For this BIGSSS we will use election results (at the polling
+station-level) to tap into the degree of polarization. What kind of
+polarization are we measuring and trying to explain?</strong></p>
+<p>Political polarization based in the opinions of different parties
+about a certain topic. We have to put the parties somewhere in the
+political spectrum and evaluate the degree of polarization.</p>
+<p><strong>How would you determine the position of parties on specific
+political topics with data that is readily available? And, which
+topic(s) would you use to determine the level of political polarization
+(in the NL)?</strong></p>
+<p>Votations in the parlament, their manifestos or media sources (public
+debates).</p>
+<ul>
+<li>inmigration attitudes or opinions on migrants</li>
+<li>crime attitudes… How to solve the problem?</li>
+</ul>
+<p><strong>Which theoretical article on political polarization should we
+definitely all read for this summer school? Please provide a reference
+and motivate your answer.</strong></p>
+<p>I’ve found a working paper on SocArXiv (<a
+href="https://osf.io/preprints/socarxiv/e5vp8/"
+class="uri">https://osf.io/preprints/socarxiv/e5vp8/</a>) which looks
+interesting to me because it resumes a good number of measures of
+polarization. The value of the paper I think it’s related to how it
+provides a guide to deal with different approximations on different
+scales because when we talk about polarization there’s no one-fits-all
+choice.</p>
+<p><strong>Please summarize some of the key or defining features of (a
+measure of) polarization.</strong></p>
+<p>Joan Esteban and Debraj Ray propose a measure to quantify the
+distance of clustered groups in a distribution. Can be more than two
+cluster but the members share same attributes with others but they’re
+different from the members of others clusters so groups are heterogeneus
+inside but heterogeneus among others.</p>
+<pre class="r test"><code>  if (method == &quot;sq&quot;) {
+    
+    distmatrix &lt;- rbind(pbar, positions)
+    
+    distances = matrix(NA, nrow(distmatrix), ncol(distmatrix))
+    
+    for (i in 1:nrow(distmatrix)) {
+      for (j in 1:nrow(distmatrix))
+      {
+        distances[i,]= (distmatrix[i,] - distmatrix[j,])^2
+      }
+    }
+  }</code></pre>
 <hr />
 
 
