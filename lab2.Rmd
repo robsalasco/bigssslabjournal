@@ -83,7 +83,7 @@ pop %>%
   summarize(mean = mean(immigration, na.rm = TRUE),
             std = sd(immigration, na.rm = TRUE)) %>% 
   arrange(desc(mean)) %>% 
-  mutate(dif=lag(mean)-mean) %>% 
+  mutate(dif=lag(mean)-mean) %>% # lag help us to detect the smallest differences in mean
   print(n=100)
 
 ```
