@@ -40,3 +40,6 @@
 # Personal folder
 /local/
 
+# Mac files
+.DS_Store
+
