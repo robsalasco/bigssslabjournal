@@ -1,0 +1,133 @@
+---
+title: "Journal 1"
+#bibliography: references.bib
+author: "Rob Salas"
+output: 
+  html_document:
+    css: tweaks.css
+    toc:  true
+    toc_float: true
+    number_sections: false
+ 
+---
+
+
+
+```{r, globalsettings, echo=FALSE, warning=FALSE, results='hide'}
+library(knitr)
+
+knitr::opts_chunk$set(echo = TRUE)
+opts_chunk$set(tidy.opts=list(width.cutoff=100),tidy=TRUE, warning = FALSE, message = FALSE,comment = "#>", cache=TRUE, class.source=c("test"), class.output=c("test2"))
+options(width = 100)
+rgl::setupKnitr()
+
+
+
+colorize <- function(x, color) {sprintf("<span style='color: %s;'>%s</span>", color, x) }
+
+```
+
+```{r klippy, echo=FALSE, include=TRUE}
+#klippy::klippy(position = c('top', 'right'))
+#klippy::klippy(color = 'darkred')
+#klippy::klippy(tooltip_message = 'Click to copy', tooltip_success = 'Done')
+```
+
+Last compiled on `r format(Sys.time(), '%B, %Y')`
+
+<br>
+
+----
+
+```{r include=FALSE}
+fsave <- function(x, file, location = "./data/processed/", ...) {
+    if (!dir.exists(location))
+        dir.create(location)
+    datename <- substr(gsub("[:-]", "", Sys.time()), 1, 8)
+    totalname <- paste(location, datename, file, sep = "")
+    print(paste("SAVED: ", totalname, sep = ""))
+    save(x, file = totalname)
+}
+
+fpackage.check <- function(packages) {
+  lapply(packages, FUN = function(x) {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)
+    }
+  })
+}
+
+packages <- c("haven", "tidyverse")
+fpackage.check(packages)
+```
+
+**What is the conclusion of the authors about inferring about a party position using the mean of expert responses?**
+
+Isn't right because experts don't evaluate positions correctly, the mean create biased estimations of the true positions. The median is better because is less sensitive to high dispersion.
+
+**Pick an item that reflects a policy dimension you are intested in, from either the POPPA or CHES dataset. Find Dutch parties that have approximately equal mean-scores on that particular item; and investigate how the shape of expert placement distributions varies across these parties. Use histograms to illustrate.**
+
+
+
+```{r}
+pop <- read_dta("./data/expert_data_stata.dta")
+# subset Dutch parties (country id=19)
+pop <- pop[which(pop$country_id == 19), ]
+# subset party and dimensions names(pop)
+pop <- pop[, c(4, 6:21)]
+
+pop %>% 
+  select(party, immigration) %>% 
+  group_by(party) %>% 
+  summarize(mean = mean(immigration, na.rm = TRUE),
+            std = sd(immigration, na.rm = TRUE)) %>% 
+  arrange(desc(mean)) %>% 
+  mutate(dif=lag(mean)-mean) %>% 
+  print(n=100)
+
+```
+
+
+```{r warning=FALSE, message=FALSE}
+df_pop <- pop %>% 
+  select(party, pop_immigration = immigration) %>% 
+  filter(party %in% c('PvdA', 'CU')) 
+  
+df_pop %>% 
+  ggplot(aes(x=pop_immigration))+
+  geom_histogram(color="black", fill="white", position = "identity") +
+  facet_wrap(~party, scales = "free_y", nrow = 2)
+```
+
+
+**Based on the article and your own empirical insights, make an informed decision about how to aggregate the expert-level responses regarding this dimension to the party-level. Use this strategy to aggregate the responses and construct a dataframe (named: df) with rows reflecting the parties and column reflecting the aggregated scores on the picked dimension(s).**
+
+
+
+```{r}
+
+df_pop_agg <- pop %>% 
+  group_by(party) %>% 
+  summarize(pop_immigration = mean(immigration, na.rm = T))
+
+dpes <- read_spss("./data/DPES2021 v1.0.sav")
+
+df <- dpes %>% 
+  select(S152, N76) %>% 
+  group_by(N76) %>% 
+  summarize(dpes_sentence_death = median(S152, na.rm = T)) %>% 
+  mutate(party = as.character(as_factor(N76))) %>% 
+  select(-N76)
+
+merged <- df_pop_agg %>% full_join(df, by='party')
+merged %>% print(n=100)
+```
+
+```{r}
+fsave(merged, "positions_data.RData")
+```
+
+
+
+

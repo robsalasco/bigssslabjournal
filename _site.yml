@@ -14,6 +14,8 @@ navbar:
       menu:
       - text: "Day 1"
         href: lab1.html
+      - text: "Day 2"
+        href: lab2.html
         
         # here, other .Rmds can be added
 

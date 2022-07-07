@@ -372,52 +372,112 @@ div.tocify {
 <p>Last compiled on July, 2022</p>
 <p><br></p>
 <hr />
-<p><strong>For this BIGSSS we will use election results (at the polling
-station-level) to tap into the degree of polarization. What kind of
-polarization are we measuring and trying to explain?</strong></p>
-<p>Political polarization based in the opinions of different parties
-about a certain topic. We have to put the parties somewhere in the
-political spectrum and evaluate the degree of polarization.</p>
-<p><strong>How would you determine the position of parties on specific
-political topics with data that is readily available? And, which
-topic(s) would you use to determine the level of political polarization
-(in the NL)?</strong></p>
-<p>Votations in the parlament, their manifestos or media sources (public
-debates).</p>
-<ul>
-<li>inmigration attitudes or opinions on migrants</li>
-<li>crime attitudes… How to solve the problem?</li>
-</ul>
-<p><strong>Which theoretical article on political polarization should we
-definitely all read for this summer school? Please provide a reference
-and motivate your answer.</strong></p>
-<p>I’ve found a working paper on SocArXiv (<a
-href="https://osf.io/preprints/socarxiv/e5vp8/"
-class="uri">https://osf.io/preprints/socarxiv/e5vp8/</a>) which looks
-interesting to me because it resumes a good number of measures of
-polarization. The value of the paper I think it’s related to how it
-provides a guide to deal with different approximations on different
-scales because when we talk about polarization there’s no one-fits-all
-choice.</p>
-<p><strong>Please summarize some of the key or defining features of (a
-measure of) polarization.</strong></p>
-<p>Joan Esteban and Debraj Ray propose a measure to quantify the
-distance of clustered groups in a distribution. Can be more than two
-cluster but the members share same attributes with others but they’re
-different from the members of others clusters so groups are heterogeneus
-inside but heterogeneus among others.</p>
-<pre class="r test"><code>if (method == &quot;sq&quot;) {
+<p><strong>What is the conclusion of the authors about inferring about a
+party position using the mean of expert responses?</strong></p>
+<p>Isn’t right because experts don’t evaluate positions correctly, the
+mean create biased estimations of the true positions. The median is
+better because is less sensitive to high dispersion.</p>
+<p><strong>Pick an item that reflects a policy dimension you are
+intested in, from either the POPPA or CHES dataset. Find Dutch parties
+that have approximately equal mean-scores on that particular item; and
+investigate how the shape of expert placement distributions varies
+across these parties. Use histograms to illustrate.</strong></p>
+<pre class="r test"><code>pop &lt;- read_dta(&quot;./data/expert_data_stata.dta&quot;)
+# subset Dutch parties (country id=19)
+pop &lt;- pop[which(pop$country_id == 19), ]
+# subset party and dimensions names(pop)
+pop &lt;- pop[, c(4, 6:21)]
 
-    distmatrix &lt;- rbind(pbar, positions)
+pop %&gt;%
+    select(party, immigration) %&gt;%
+    group_by(party) %&gt;%
+    summarize(mean = mean(immigration, na.rm = TRUE), std = sd(immigration, na.rm = TRUE)) %&gt;%
+    arrange(desc(mean)) %&gt;%
+    mutate(dif = lag(mean) - mean) %&gt;%
+    print(n = 100)</code></pre>
+<pre class="test2"><code>#&gt; # A tibble: 13 × 4
+#&gt;    party   mean   std    dif
+#&gt;    &lt;chr&gt;  &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt;
+#&gt;  1 DENK   8.6   1.07  NA    
+#&gt;  2 GL     7.85  1.28   0.754
+#&gt;  3 D66    6.62  1.39   1.23 
+#&gt;  4 PvdD   6.38  0.744  0.240
+#&gt;  5 PvdA   5.62  1.33   0.760
+#&gt;  6 CU     5.42  1.24   0.199
+#&gt;  7 SP     4.54  1.27   0.878
+#&gt;  8 50Plus 3.75  0.5    0.788
+#&gt;  9 CDA    3.15  0.987  0.596
+#&gt; 10 VVD    2.85  1.14   0.308
+#&gt; 11 SGP    2.17  0.835  0.679
+#&gt; 12 FvD    0.462 0.776  1.71 
+#&gt; 13 PVV    0.154 0.376  0.308</code></pre>
+<pre class="r test"><code>df_pop &lt;- pop %&gt;%
+    select(party, pop_immigration = immigration) %&gt;%
+    filter(party %in% c(&quot;PvdA&quot;, &quot;CU&quot;))
 
-    distances = matrix(NA, nrow(distmatrix), ncol(distmatrix))
+df_pop %&gt;%
+    ggplot(aes(x = pop_immigration)) + geom_histogram(color = &quot;black&quot;, fill = &quot;white&quot;, position = &quot;identity&quot;) +
+    facet_wrap(~party, scales = &quot;free_y&quot;, nrow = 2)</code></pre>
+<p><img src="lab2_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p><strong>Based on the article and your own empirical insights, make an
+informed decision about how to aggregate the expert-level responses
+regarding this dimension to the party-level. Use this strategy to
+aggregate the responses and construct a dataframe (named: df) with rows
+reflecting the parties and column reflecting the aggregated scores on
+the picked dimension(s).</strong></p>
+<pre class="r test"><code>df_pop_agg &lt;- pop %&gt;%
+    group_by(party) %&gt;%
+    summarize(pop_immigration = mean(immigration, na.rm = T))
 
-    for (i in 1:nrow(distmatrix)) {
-        for (j in 1:nrow(distmatrix)) {
-            distances[i, ] = (distmatrix[i, ] - distmatrix[j, ])^2
-        }
-    }
-}</code></pre>
+dpes &lt;- read_spss(&quot;./data/DPES2021 v1.0.sav&quot;)
+
+df &lt;- dpes %&gt;%
+    select(S152, N76) %&gt;%
+    group_by(N76) %&gt;%
+    summarize(dpes_sentence_death = median(S152, na.rm = T)) %&gt;%
+    mutate(party = as.character(as_factor(N76))) %&gt;%
+    select(-N76)
+
+merged &lt;- df_pop_agg %&gt;%
+    full_join(df, by = &quot;party&quot;)
+merged %&gt;%
+    print(n = 100)</code></pre>
+<pre class="test2"><code>#&gt; # A tibble: 31 × 3
+#&gt;    party                 pop_immigration dpes_sentence_death
+#&gt;    &lt;chr&gt;                           &lt;dbl&gt;               &lt;dbl&gt;
+#&gt;  1 50Plus                          3.75                 NA  
+#&gt;  2 CDA                             3.15                  4  
+#&gt;  3 CU                              5.42                 NA  
+#&gt;  4 D66                             6.62                  5  
+#&gt;  5 DENK                            8.6                   3  
+#&gt;  6 FvD                             0.462                NA  
+#&gt;  7 GL                              7.85                 NA  
+#&gt;  8 PvdA                            5.62                  5  
+#&gt;  9 PvdD                            6.38                  4  
+#&gt; 10 PVV                             0.154                 2  
+#&gt; 11 SGP                             2.17                  3  
+#&gt; 12 SP                              4.54                  4  
+#&gt; 13 VVD                             2.85                  4  
+#&gt; 14 GroenLinks                     NA                     5  
+#&gt; 15 ChristenUnie                   NA                     4  
+#&gt; 16 50PLUS                         NA                     3  
+#&gt; 17 Forum voor Democratie          NA                     3  
+#&gt; 18 BIJ1                           NA                     4  
+#&gt; 19 BoerBurgerBeweging             NA                     2.5
+#&gt; 20 Code Oranje                    NA                     4  
+#&gt; 21 JA21                           NA                     3  
+#&gt; 22 Libertaire Partij              NA                     4  
+#&gt; 23 Lijst Henk Krol                NA                     3  
+#&gt; 24 NIDA                           NA                     3  
+#&gt; 25 Piratenpartij                  NA                     5  
+#&gt; 26 Splinter                       NA                     2.5
+#&gt; 27 Vrijzinnige partij             NA                     4  
+#&gt; 28 Other party                    NA                     5  
+#&gt; 29 Blank                          NA                     3.5
+#&gt; 30 Invalid                        NA                     4  
+#&gt; 31 &lt;NA&gt;                           NA                     4</code></pre>
+<pre class="r test"><code>fsave(merged, &quot;positions_data.RData&quot;)</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;SAVED: ./data/processed/20220707positions_data.RData&quot;</code></pre>
 
 
 

@@ -75,10 +75,3 @@ Joan Esteban and Debraj Ray propose a measure to quantify the distance of cluste
   }
 ```
 
-----
-
-
-
-
-
-
