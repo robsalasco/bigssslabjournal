@@ -43,3 +43,5 @@
 # Mac files
 .DS_Store
 
+# Sandbox
+/sandbox/
