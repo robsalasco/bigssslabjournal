@@ -401,6 +401,8 @@ names(js_df) &lt;- c(&quot;Stembureau&quot;, &quot;Adres&quot;, &quot;Locatie&qu
     &quot;U.Buntu.Connected.Front&quot;, &quot;Blanco..Zeven..A.J.L.B..&quot;, &quot;Partij.van.de.Eenheid&quot;, &quot;Wij.zijn.Nederland&quot;,
     &quot;gmcode&quot;, &quot;election&quot;, &quot;electionName&quot;, &quot;DE.FEESTPARTIJ..DFP.&quot;, &quot;Modern.Nederland&quot;, &quot;Vrij.en.Sociaal.Nederland&quot;,
     &quot;De.Groenen&quot;, &quot;Partij.voor.de.Republiek&quot;, &quot;long&quot;, &quot;lat&quot;)</code></pre>
+<p><strong>A. Please make a nice descriptive table of how many
+voters/polling stations we loose at each selection.</strong></p>
 <pre class="r test"><code># data cleaning
 
 total_phases &lt;- 6
@@ -416,9 +418,9 @@ loses &lt;- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] &lt;- loses
 
-message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
-
-# aggregate polling stations with same location
+print((paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses)))</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;phase: 1 -&gt; current loses 420&quot;</code></pre>
+<pre class="r test"><code># aggregate polling stations with same location
 
 phase &lt;- 2
 
@@ -432,19 +434,14 @@ loses &lt;- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] &lt;- loses
 
-message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
-
-# remove polling station for which no voters were invited
+print((paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses)))</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;phase: 2 -&gt; current loses 5209&quot;</code></pre>
+<pre class="r test"><code># remove polling station for which no voters were invited
 
 phase &lt;- 3
 
-print(&quot;polling stations without invited voters&quot;)</code></pre>
-<pre class="test2"><code>#&gt; [1] &quot;polling stations without invited voters&quot;</code></pre>
-<pre class="r test"><code>table(js_df2$Opgeroepen == 0, useNA = &quot;always&quot;)</code></pre>
-<pre class="test2"><code>#&gt; 
-#&gt; FALSE  TRUE  &lt;NA&gt; 
-#&gt;  7403  1212     0</code></pre>
-<pre class="r test"><code># lets throw these away
+## print(&#39;polling stations without invited voters&#39;) table(js_df2$Opgeroepen == 0, useNA = &#39;always&#39;)
+## lets throw these away
 js_df2 %&gt;%
     filter(!Opgeroepen == 0) -&gt; js_df2
 
@@ -452,19 +449,17 @@ loses &lt;- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] &lt;- loses
 
-message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
-
-# remove polling stations where a lot more voters voted than were invited.
+print((paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses)))</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;phase: 3 -&gt; current loses 6421&quot;</code></pre>
+<pre class="r test"><code># remove polling stations where a lot more voters voted than were invited.
 
 phase &lt;- 4
 
 print(&quot;polling stations that are very popular (more than 110% votes)&quot;)</code></pre>
 <pre class="test2"><code>#&gt; [1] &quot;polling stations that are very popular (more than 110% votes)&quot;</code></pre>
-<pre class="r test"><code>table((js_df2$Geldige.stemmen/js_df2$Opgeroepen) &gt; 1.1, useNA = &quot;always&quot;)</code></pre>
-<pre class="test2"><code>#&gt; 
-#&gt; FALSE  TRUE  &lt;NA&gt; 
-#&gt;  6631   772     0</code></pre>
-<pre class="r test"><code># lets throw these away
+<pre class="r test"><code># table((js_df2$Geldige.stemmen/js_df2$Opgeroepen) &gt; 1.1, useNA = &#39;always&#39;)
+
+# lets throw these away
 js_df2 %&gt;%
     filter(!((Geldige.stemmen/Opgeroepen) &gt; 1.1)) -&gt; js_df2
 
@@ -472,9 +467,9 @@ loses &lt;- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] &lt;- loses
 
-message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
-
-# still need to remove polling stations where it is unlikely that voters are from their catching
+print((paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses)))</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;phase: 4 -&gt; current loses 7193&quot;</code></pre>
+<pre class="r test"><code># still need to remove polling stations where it is unlikely that voters are from their catching
 # area. (e.g. NS stations)
 
 phase &lt;- 5
@@ -488,9 +483,9 @@ loses &lt;- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] &lt;- loses
 
-message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
-
-# remove polling stations without valid votes
+print((paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses)))</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;phase: 5 -&gt; current loses 7208&quot;</code></pre>
+<pre class="r test"><code># remove polling stations without valid votes
 
 phase &lt;- 6
 
@@ -501,15 +496,27 @@ loses &lt;- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] &lt;- loses
 
-message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))</code></pre>
+print((paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses)))</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;phase: 6 -&gt; current loses 7209&quot;</code></pre>
+<p>Final table</p>
 <pre class="r test"><code># final
 
 # differences of the original dataset v/s the cleaned one
 
 tibble(phase = 1:6, n = vector_n_phases) %&gt;%
-    mutate(losses = lead(n) - n) %&gt;%
-    pull(losses)</code></pre>
-<pre class="test2"><code>#&gt; [1] 4789 1212  772   15    1   NA</code></pre>
+    mutate(losses = lead(n) - n)</code></pre>
+<pre class="test2"><code>#&gt; # A tibble: 6 × 3
+#&gt;   phase     n losses
+#&gt;   &lt;int&gt; &lt;int&gt;  &lt;int&gt;
+#&gt; 1     1   420   4789
+#&gt; 2     2  5209   1212
+#&gt; 3     3  6421    772
+#&gt; 4     4  7193     15
+#&gt; 5     5  7208      1
+#&gt; 6     6  7209     NA</code></pre>
+<div id="losses-in-different-regions" class="section level2">
+<h2>Losses in different regions</h2>
+<p>Total coverage of the postcodes database</p>
 <pre class="r test"><code># how many losses in different regions
 
 library(purrr)
@@ -534,6 +541,7 @@ is.na(js_df_postalcode %&gt;%
 <pre class="test2"><code>#&gt;      .     n   percent
 #&gt;  FALSE 12333 0.8566368
 #&gt;   TRUE  2064 0.1433632</code></pre>
+<p>Final coverage by region (regions with less than 50% of coverage)</p>
 <pre class="r test"><code># warning: lots of NA
 
 js_df_postalcode %&gt;%
@@ -877,6 +885,10 @@ js_df_postalcode %&gt;%
 #&gt; 323 Helmond                           58      28          48.3 
 #&gt; 324 Waddinxveen                       31      15          48.4 
 #&gt; 325 Assen                             47      23          48.9</code></pre>
+<p><strong>My (Jochem Tolsma) zipcode is 6576JP this is in Ooij
+(municipality Berg en Dal). Where do you think I voted? Is there
+something wrong with our data? No need to do all kind of fancy spatial
+analysis yet. Just look at the data.</strong></p>
 <pre class="r test"><code># how voted jochem
 
 js_df_postalcode %&gt;%
@@ -902,6 +914,7 @@ js_df_postalcode %&gt;%
 #&gt; 10 FvD            35  2.70
 #&gt; # … with 22 more rows</code></pre>
 <pre class="r test"><code># https://en.wikipedia.org/wiki/Democrats_66</code></pre>
+</div>
 
 
 

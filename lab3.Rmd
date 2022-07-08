@@ -96,6 +96,8 @@ names(js_df) <- c("Stembureau", "Adres", "Locatie", "description", "Geldige.stem
                   "De.Groenen", "Partij.voor.de.Republiek", "long", "lat")
 ```
 
+**A. Please make a nice descriptive table of how many voters/polling stations we loose at each selection.**
+
 ```{r}
 # data cleaning
 
@@ -112,7 +114,7 @@ loses <- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] <- loses
 
-message(paste("phase:", phase,"-> current loses", loses))
+print((paste("phase:", phase,"-> current loses", loses)))
 
 # aggregate polling stations with same location
 
@@ -128,14 +130,14 @@ loses <- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] <- loses
 
-message(paste("phase:", phase,"-> current loses", loses))
+print((paste("phase:", phase,"-> current loses", loses)))
 
 # remove polling station for which no voters were invited
 
 phase <- 3
 
-print("polling stations without invited voters")
-table(js_df2$Opgeroepen == 0, useNA = "always")
+##print("polling stations without invited voters")
+##table(js_df2$Opgeroepen == 0, useNA = "always")
 # lets throw these away
 js_df2 %>%
   filter(!Opgeroepen == 0) -> js_df2
@@ -144,14 +146,14 @@ loses <- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] <- loses
 
-message(paste("phase:", phase,"-> current loses", loses))
+print((paste("phase:", phase,"-> current loses", loses)))
 
 # remove polling stations where a lot more voters voted than were invited.
 
 phase <- 4
 
 print("polling stations that are very popular (more than 110% votes)")
-table((js_df2$Geldige.stemmen/js_df2$Opgeroepen) > 1.1, useNA = "always")
+#table((js_df2$Geldige.stemmen/js_df2$Opgeroepen) > 1.1, useNA = "always")
 
 # lets throw these away
 js_df2 %>%
@@ -161,7 +163,7 @@ loses <- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] <- loses
 
-message(paste("phase:", phase,"-> current loses", loses))
+print((paste("phase:", phase,"-> current loses", loses)))
 
 # still need to remove polling stations where it is unlikely that voters are from their catching
 # area. (e.g. NS stations)
@@ -177,7 +179,7 @@ loses <- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] <- loses
 
-message(paste("phase:", phase,"-> current loses", loses))
+print((paste("phase:", phase,"-> current loses", loses)))
 
 # remove polling stations without valid votes
 
@@ -190,9 +192,11 @@ loses <- nrow(js_df) - nrow(js_df2)
 
 vector_n_phases[phase] <- loses
 
-message(paste("phase:", phase,"-> current loses", loses))
+print((paste("phase:", phase,"-> current loses", loses)))
 
 ```
+
+Final table
 
 ```{r}
 # final
@@ -200,9 +204,12 @@ message(paste("phase:", phase,"-> current loses", loses))
 #differences of the original dataset v/s the cleaned one
  
 tibble(phase=1:6, n=vector_n_phases) %>%
-  mutate(losses=lead(n)-n) %>%
-  pull(losses)
+  mutate(losses=lead(n)-n)
 ```
+
+## Losses in different regions
+
+Total coverage of the postcodes database
 
 ```{r}
 # how many losses in different regions
@@ -227,6 +234,12 @@ js_df2_postalcode <- left_join(js_df2, postcodes, by=c("Adres"="postalcode"))
 
 is.na(js_df_postalcode %>% pull(city)) %>% tabyl()
 
+```
+
+Final coverage by region (regions with less than 50% of coverage)
+
+```{r}
+
 # warning: lots of NA
 
 js_df_postalcode %>%
@@ -242,6 +255,9 @@ js_df_postalcode %>%
   filter(final_coverage<50) %>% 
   print(n=1000)
 ```
+
+
+**My (Jochem Tolsma) zipcode is 6576JP this is in Ooij (municipality Berg en Dal). Where do you think I voted? Is there something wrong with our data? No need to do all kind of fancy spatial analysis yet. Just look at the data.**
 
 ```{r}
 #how voted jochem
