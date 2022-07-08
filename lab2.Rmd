@@ -1,5 +1,5 @@
 ---
-title: "Journal 1"
+title: "Journal 2"
 #bibliography: references.bib
 author: "Rob Salas"
 output: 
@@ -77,13 +77,15 @@ pop <- pop[which(pop$country_id == 19), ]
 # subset party and dimensions names(pop)
 pop <- pop[, c(4, 6:21)]
 
+# lag help us to detect the smallest differences in mean
+
 pop %>% 
   select(party, immigration) %>% 
   group_by(party) %>% 
   summarize(mean = mean(immigration, na.rm = TRUE),
             std = sd(immigration, na.rm = TRUE)) %>% 
   arrange(desc(mean)) %>% 
-  mutate(dif=lag(mean)-mean) %>% # lag help us to detect the smallest differences in mean
+  mutate(dif=lag(mean)-mean) %>% 
   print(n=100)
 
 ```
