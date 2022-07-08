@@ -12,7 +12,7 @@
 <meta name="author" content="Rob Salas" />
 
 
-<title>Journal 1</title>
+<title>Journal 2</title>
 
 <script src="site_libs/header-attrs-2.14/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -344,6 +344,9 @@ div.tocify {
     <li>
       <a href="lab2.html">Day 2</a>
     </li>
+    <li>
+      <a href="lab3.html">Day 3</a>
+    </li>
   </ul>
 </li>
       </ul>
@@ -363,7 +366,7 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Journal 1</h1>
+<h1 class="title toc-ignore">Journal 2</h1>
 <h4 class="author">Rob Salas</h4>
 
 </div>
@@ -387,6 +390,8 @@ across these parties. Use histograms to illustrate.</strong></p>
 pop &lt;- pop[which(pop$country_id == 19), ]
 # subset party and dimensions names(pop)
 pop &lt;- pop[, c(4, 6:21)]
+
+# lag help us to detect the smallest differences in mean
 
 pop %&gt;%
     select(party, immigration) %&gt;%
@@ -477,7 +482,7 @@ merged %&gt;%
 #&gt; 30 Invalid                        NA                     4  
 #&gt; 31 &lt;NA&gt;                           NA                     4</code></pre>
 <pre class="r test"><code>fsave(merged, &quot;positions_data.RData&quot;)</code></pre>
-<pre class="test2"><code>#&gt; [1] &quot;SAVED: ./data/processed/20220707positions_data.RData&quot;</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;SAVED: ./data/processed/20220708positions_data.RData&quot;</code></pre>
 
 
 
