@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Rob Salas" />
+
+
+<title>Journal 3</title>
+
+<script src="site_libs/header-attrs-2.14/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/flatly.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+<link rel="stylesheet" href="tweaks.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">
+    <span class="fa fa-home"></span>
+     
+  </a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    My journal
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="lab1.html">Day 1</a>
+    </li>
+    <li>
+      <a href="lab2.html">Day 2</a>
+    </li>
+    <li>
+      <a href="lab3.html">Day 3</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/robfranken/bigssslabjournal">
+    <span class="fab fa-github"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Journal 3</h1>
+<h4 class="author">Rob Salas</h4>
+
+</div>
+
+
+<p>Last compiled on July, 2022</p>
+<p><br></p>
+<hr />
+<pre class="r test"><code>elections &lt;- rjson::fromJSON(file = &quot;./data/tk2021.geo.json&quot;)
+
+# this is a bit messy. tidyverse would would be welcome
+
+# retrieve the data
+test &lt;- lapply(elections[[&quot;features&quot;]], `[[`, 2)
+js_df &lt;- sapply(test, function(x) as.data.frame(x))
+library(plyr)
+js_df &lt;- ldply(js_df, data.frame)
+detach(&quot;package:plyr&quot;, unload = TRUE)
+
+test &lt;- lapply(elections[[&quot;features&quot;]], `[[`, 3)
+test &lt;- lapply(test, &quot;[[&quot;, 2)
+js_df$long &lt;- sapply(test, function(x) x[1])
+js_df$lat &lt;- sapply(test, function(x) x[2])
+
+names(js_df) &lt;- c(&quot;Stembureau&quot;, &quot;Adres&quot;, &quot;Locatie&quot;, &quot;description&quot;, &quot;Geldige.stemmen&quot;, &quot;Opgeroepen&quot;, &quot;Ongeldig&quot;,
+    &quot;Blanco&quot;, &quot;Geldige.stempassen&quot;, &quot;Geldige.volmachtbewijzen&quot;, &quot;Geldige.kiezerspassen&quot;, &quot;Toegelaten.kiezers&quot;,
+    &quot;Meer.getelde.stembiljetten&quot;, &quot;Minder.getelde.stembiljetten&quot;, &quot;Meegenomen.stembiljetten&quot;, &quot;Te.weinig.uitgereikte.stembiljetten&quot;,
+    &quot;Te.veel.uitgereikte.stembiljetten&quot;, &quot;Geen.verklaring&quot;, &quot;Andere.verklaring&quot;, &quot;Te.veel.briefstembiljetten&quot;,
+    &quot;Geen.briefstembiljetten&quot;, &quot;VVD&quot;, &quot;PVV&quot;, &quot;CDA&quot;, &quot;D66&quot;, &quot;GL&quot;, &quot;SP&quot;, &quot;PvdA&quot;, &quot;CU&quot;, &quot;PvdD&quot;, &quot;PLUS50&quot;,
+    &quot;SGP&quot;, &quot;DENK&quot;, &quot;FvD&quot;, &quot;BIJ1&quot;, &quot;JA21&quot;, &quot;CODE.ORANJE&quot;, &quot;Volt&quot;, &quot;NIDA&quot;, &quot;Piratenpartij&quot;, &quot;LP..Libertaire.Partij.&quot;,
+    &quot;JONG&quot;, &quot;Splinter&quot;, &quot;BBB&quot;, &quot;NLBeter&quot;, &quot;Lijst.Henk.Krol&quot;, &quot;OPRECHT&quot;, &quot;JEZUS.LEEFT&quot;, &quot;Trots.op.Nederland..TROTS.&quot;,
+    &quot;U.Buntu.Connected.Front&quot;, &quot;Blanco..Zeven..A.J.L.B..&quot;, &quot;Partij.van.de.Eenheid&quot;, &quot;Wij.zijn.Nederland&quot;,
+    &quot;gmcode&quot;, &quot;election&quot;, &quot;electionName&quot;, &quot;DE.FEESTPARTIJ..DFP.&quot;, &quot;Modern.Nederland&quot;, &quot;Vrij.en.Sociaal.Nederland&quot;,
+    &quot;De.Groenen&quot;, &quot;Partij.voor.de.Republiek&quot;, &quot;long&quot;, &quot;lat&quot;)</code></pre>
+<pre class="r test"><code># data cleaning
+
+total_phases &lt;- 6
+vector_n_phases &lt;- rep(NA, total_phases)
+
+# remove polling stations without coordinates (briefstembureaus mostly)
+
+phase &lt;- 1
+js_df %&gt;%
+    filter(!lat == 0) -&gt; js_df2
+
+loses &lt;- nrow(js_df) - nrow(js_df2)
+
+vector_n_phases[phase] &lt;- loses
+
+message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
+
+# aggregate polling stations with same location
+
+phase &lt;- 2
+
+js_df2 %&gt;%
+    group_by(long, lat) %&gt;%
+    dplyr::summarise(Adres = first(Adres), Stembureau = first(Stembureau), description = first(description),
+        gmcode = first(gmcode), across(Geldige.stemmen:Wij.zijn.Nederland, ~sum(.x, na.rm = TRUE))) -&gt;
+    js_df2
+
+loses &lt;- nrow(js_df) - nrow(js_df2)
+
+vector_n_phases[phase] &lt;- loses
+
+message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
+
+# remove polling station for which no voters were invited
+
+phase &lt;- 3
+
+print(&quot;polling stations without invited voters&quot;)</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;polling stations without invited voters&quot;</code></pre>
+<pre class="r test"><code>table(js_df2$Opgeroepen == 0, useNA = &quot;always&quot;)</code></pre>
+<pre class="test2"><code>#&gt; 
+#&gt; FALSE  TRUE  &lt;NA&gt; 
+#&gt;  7403  1212     0</code></pre>
+<pre class="r test"><code># lets throw these away
+js_df2 %&gt;%
+    filter(!Opgeroepen == 0) -&gt; js_df2
+
+loses &lt;- nrow(js_df) - nrow(js_df2)
+
+vector_n_phases[phase] &lt;- loses
+
+message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
+
+# remove polling stations where a lot more voters voted than were invited.
+
+phase &lt;- 4
+
+print(&quot;polling stations that are very popular (more than 110% votes)&quot;)</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;polling stations that are very popular (more than 110% votes)&quot;</code></pre>
+<pre class="r test"><code>table((js_df2$Geldige.stemmen/js_df2$Opgeroepen) &gt; 1.1, useNA = &quot;always&quot;)</code></pre>
+<pre class="test2"><code>#&gt; 
+#&gt; FALSE  TRUE  &lt;NA&gt; 
+#&gt;  6631   772     0</code></pre>
+<pre class="r test"><code># lets throw these away
+js_df2 %&gt;%
+    filter(!((Geldige.stemmen/Opgeroepen) &gt; 1.1)) -&gt; js_df2
+
+loses &lt;- nrow(js_df) - nrow(js_df2)
+
+vector_n_phases[phase] &lt;- loses
+
+message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
+
+# still need to remove polling stations where it is unlikely that voters are from their catching
+# area. (e.g. NS stations)
+
+phase &lt;- 5
+
+sel &lt;- which(grepl(&quot;Brief&quot;, js_df2$description))
+js_df2 &lt;- js_df2[-sel, ]
+sel &lt;- which(grepl(&quot;station&quot;, js_df2$description))
+js_df2 &lt;- js_df2[-sel, ]
+
+loses &lt;- nrow(js_df) - nrow(js_df2)
+
+vector_n_phases[phase] &lt;- loses
+
+message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))
+
+# remove polling stations without valid votes
+
+phase &lt;- 6
+
+js_df2 %&gt;%
+    filter(!(Geldige.stemmen == 0)) -&gt; js_df2
+
+loses &lt;- nrow(js_df) - nrow(js_df2)
+
+vector_n_phases[phase] &lt;- loses
+
+message(paste(&quot;phase:&quot;, phase, &quot;-&gt; current loses&quot;, loses))</code></pre>
+<pre class="r test"><code># final
+
+# differences of the original dataset v/s the cleaned one
+
+tibble(phase = 1:6, n = vector_n_phases) %&gt;%
+    mutate(losses = lead(n) - n) %&gt;%
+    pull(losses)</code></pre>
+<pre class="test2"><code>#&gt; [1] 4789 1212  772   15    1   NA</code></pre>
+<pre class="r test"><code># how many losses in different regions
+
+library(purrr)
+library(stringr)
+library(janitor)
+library(readr)
+library(tidyr)
+
+# postcodes
+# https://github.com/wesdegroot/PHP/blob/5673a5bb5fbd9ae0fd4870755a3dab428cf5cbf3/datasets/postcode_NL.csv.zip
+
+postcodes &lt;- read_delim(&quot;data/postcode_NL.csv&quot;, delim = &quot;;&quot;, col_select = c(2, 6, 7, 9, 10, 14), col_names = FALSE) %&gt;%
+    rename(postalcode = X2, from = X6, to = X7, address = X9, city = X10, province = X14)
+
+js_df_postalcode &lt;- left_join(js_df, postcodes, by = c(Adres = &quot;postalcode&quot;))
+js_df2_postalcode &lt;- left_join(js_df2, postcodes, by = c(Adres = &quot;postalcode&quot;))
+
+
+is.na(js_df_postalcode %&gt;%
+    pull(city)) %&gt;%
+    tabyl()</code></pre>
+<pre class="test2"><code>#&gt;      .     n   percent
+#&gt;  FALSE 12333 0.8566368
+#&gt;   TRUE  2064 0.1433632</code></pre>
+<pre class="r test"><code># warning: lots of NA
+
+js_df_postalcode %&gt;%
+    group_by(city) %&gt;%
+    count(name = &quot;n_initial&quot;) %&gt;%
+    arrange(desc(n_initial)) %&gt;%
+    full_join(js_df2_postalcode %&gt;%
+        group_by(city) %&gt;%
+        count(name = &quot;n_final&quot;) %&gt;%
+        arrange(desc(n_final))) %&gt;%
+    mutate(final_coverage = (n_final/n_initial) * 100) %&gt;%
+    arrange(final_coverage) %&gt;%
+    filter(final_coverage &lt; 50) %&gt;%
+    print(n = 1000)</code></pre>
+<pre class="test2"><code>#&gt; # A tibble: 325 × 4
+#&gt; # Groups:   city [325]
+#&gt;     city                       n_initial n_final final_coverage
+#&gt;     &lt;chr&gt;                          &lt;int&gt;   &lt;int&gt;          &lt;dbl&gt;
+#&gt;   1 Maastricht                        83       1           1.20
+#&gt;   2 Alkmaar                           67       1           1.49
+#&gt;   3 Soest                             29       1           3.45
+#&gt;   4 Hoorn                             28       1           3.57
+#&gt;   5 Culemborg                         21       1           4.76
+#&gt;   6 Nieuwerkerk aan den IJssel        10       1          10   
+#&gt;   7 Berg en Terblijt                   9       1          11.1 
+#&gt;   8 Nieuwveen                          8       1          12.5 
+#&gt;   9 Born                               7       1          14.3 
+#&gt;  10 Opheusden                          7       1          14.3 
+#&gt;  11 Schipluiden                        7       1          14.3 
+#&gt;  12 Simpelveld                         7       1          14.3 
+#&gt;  13 Sint Odiliënberg                   7       1          14.3 
+#&gt;  14 Damwâld                           12       2          16.7 
+#&gt;  15 Baarle-Nassau                      6       1          16.7 
+#&gt;  16 Gieten                             6       1          16.7 
+#&gt;  17 Margraten                          6       1          16.7 
+#&gt;  18 Middenbeemster                     6       1          16.7 
+#&gt;  19 Nistelrode                         6       1          16.7 
+#&gt;  20 Rouveen                           10       2          20   
+#&gt;  21 De Goorn                           5       1          20   
+#&gt;  22 Diever                             5       1          20   
+#&gt;  23 Dinteloord                         5       1          20   
+#&gt;  24 Eefde                              5       1          20   
+#&gt;  25 Gaanderen                          5       1          20   
+#&gt;  26 Gulpen                             5       1          20   
+#&gt;  27 Koedijk                            5       1          20   
+#&gt;  28 Mook                               5       1          20   
+#&gt;  29 Opmeer                             5       1          20   
+#&gt;  30 Vries                              5       1          20   
+#&gt;  31 Workum                             5       1          20   
+#&gt;  32 Spijkenisse                       73      16          21.9 
+#&gt;  33 Bemmel                             9       2          22.2 
+#&gt;  34 Uitgeest                          13       3          23.1 
+#&gt;  35 Elst                              21       5          23.8 
+#&gt;  36 Malden                            12       3          25   
+#&gt;  37 Bolsward                           8       2          25   
+#&gt;  38 Kerkdriel                          8       2          25   
+#&gt;  39 Leende                             8       2          25   
+#&gt;  40 Lent                               8       2          25   
+#&gt;  41 Limmen                             8       2          25   
+#&gt;  42 Oldebroek                          8       2          25   
+#&gt;  43 Rockanje                           8       2          25   
+#&gt;  44 Rucphen                            8       2          25   
+#&gt;  45 Wognum                             8       2          25   
+#&gt;  46 Zeeland                            8       2          25   
+#&gt;  47 Zevenhuizen                        8       2          25   
+#&gt;  48 Zuidwolde                          8       2          25   
+#&gt;  49 Beekbergen                         4       1          25   
+#&gt;  50 Buren                              4       1          25   
+#&gt;  51 De Cocksdorp                       4       1          25   
+#&gt;  52 Elst Ut                            4       1          25   
+#&gt;  53 Giesbeek                           4       1          25   
+#&gt;  54 Goutum                             4       1          25   
+#&gt;  55 Grubbenvorst                       4       1          25   
+#&gt;  56 Haaren                             4       1          25   
+#&gt;  57 Hengevelde                         4       1          25   
+#&gt;  58 Heteren                            4       1          25   
+#&gt;  59 Koudekerke                         4       1          25   
+#&gt;  60 Koudum                             4       1          25   
+#&gt;  61 Kwintsheul                         4       1          25   
+#&gt;  62 Maasdijk                           4       1          25   
+#&gt;  63 Melick                             4       1          25   
+#&gt;  64 Ochten                             4       1          25   
+#&gt;  65 Odoorn                             4       1          25   
+#&gt;  66 Oostkapelle                        4       1          25   
+#&gt;  67 Oude-Tonge                         4       1          25   
+#&gt;  68 Overloon                           4       1          25   
+#&gt;  69 Rijsenhout                         4       1          25   
+#&gt;  70 Schiermonnikoog                    4       1          25   
+#&gt;  71 Schinnen                           4       1          25   
+#&gt;  72 Sint Nicolaasga                    4       1          25   
+#&gt;  73 Vlagtwedde                         4       1          25   
+#&gt;  74 West-Terschelling                  4       1          25   
+#&gt;  75 Zetten                             4       1          25   
+#&gt;  76 Voorschoten                       19       5          26.3 
+#&gt;  77 Beneden-Leeuwen                   11       3          27.3 
+#&gt;  78 Bovenkarspel                      11       3          27.3 
+#&gt;  79 Heesch                            11       3          27.3 
+#&gt;  80 Heinkenszand                      11       3          27.3 
+#&gt;  81 Oostzaan                          11       3          27.3 
+#&gt;  82 Tubbergen                         11       3          27.3 
+#&gt;  83 Westervoort                       11       3          27.3 
+#&gt;  84 Wormer                            18       5          27.8 
+#&gt;  85 Heerhugowaard                     32       9          28.1 
+#&gt;  86 Gennep                            14       4          28.6 
+#&gt;  87 Bladel                             7       2          28.6 
+#&gt;  88 Buitenpost                         7       2          28.6 
+#&gt;  89 Chaam                              7       2          28.6 
+#&gt;  90 Mill                               7       2          28.6 
+#&gt;  91 Odijk                              7       2          28.6 
+#&gt;  92 Sevenum                            7       2          28.6 
+#&gt;  93 Zuidland                           7       2          28.6 
+#&gt;  94 Heiloo                            17       5          29.4 
+#&gt;  95 Oss                               30       9          30   
+#&gt;  96 Rhoon                             10       3          30   
+#&gt;  97 Bodegraven                        26       8          30.8 
+#&gt;  98 Borculo                           13       4          30.8 
+#&gt;  99 Vianen                            16       5          31.2 
+#&gt; 100 Nieuwegein                        54      17          31.5 
+#&gt; 101 &lt;NA&gt;                            2064     683          33.1 
+#&gt; 102 Beek                              30      10          33.3 
+#&gt; 103 Vleuten                           24       8          33.3 
+#&gt; 104 Sint-Michielsgestel               15       5          33.3 
+#&gt; 105 Druten                            12       4          33.3 
+#&gt; 106 Eemnes                            12       4          33.3 
+#&gt; 107 Nederweert                        12       4          33.3 
+#&gt; 108 Eersel                             9       3          33.3 
+#&gt; 109 Meerssen                           9       3          33.3 
+#&gt; 110 Obdam                              9       3          33.3 
+#&gt; 111 Abcoude                            6       2          33.3 
+#&gt; 112 Delfgauw                           6       2          33.3 
+#&gt; 113 Den Burg                           6       2          33.3 
+#&gt; 114 Hoogerheide                        6       2          33.3 
+#&gt; 115 Kloosterhaar                       6       2          33.3 
+#&gt; 116 Kortenhoef                         6       2          33.3 
+#&gt; 117 Lopik                              6       2          33.3 
+#&gt; 118 Renswoude                          6       2          33.3 
+#&gt; 119 Sas van Gent                       6       2          33.3 
+#&gt; 120 Sellingen                          6       2          33.3 
+#&gt; 121 Sint Anthonis                      6       2          33.3 
+#&gt; 122 Ter Heijde                         6       2          33.3 
+#&gt; 123 Terheijden                         6       2          33.3 
+#&gt; 124 Wenum Wiesel                       6       2          33.3 
+#&gt; 125 Aalst                              3       1          33.3 
+#&gt; 126 Andelst                            3       1          33.3 
+#&gt; 127 Anjum                              3       1          33.3 
+#&gt; 128 Ankeveen                           3       1          33.3 
+#&gt; 129 Annen                              3       1          33.3 
+#&gt; 130 Asperen                            3       1          33.3 
+#&gt; 131 Benschop                           3       1          33.3 
+#&gt; 132 Cadier en Keer                     3       1          33.3 
+#&gt; 133 De Zilk                            3       1          33.3 
+#&gt; 134 Doornenburg                        3       1          33.3 
+#&gt; 135 Dorst                              3       1          33.3 
+#&gt; 136 Epen                               3       1          33.3 
+#&gt; 137 Exloo                              3       1          33.3 
+#&gt; 138 Ferwert                            3       1          33.3 
+#&gt; 139 Haaften                            3       1          33.3 
+#&gt; 140 Haghorst                           3       1          33.3 
+#&gt; 141 Heeg                               3       1          33.3 
+#&gt; 142 Hem                                3       1          33.3 
+#&gt; 143 Hempens                            3       1          33.3 
+#&gt; 144 Hoek                               3       1          33.3 
+#&gt; 145 Hulshorst                          3       1          33.3 
+#&gt; 146 Hunsel                             3       1          33.3 
+#&gt; 147 Kesteren                           3       1          33.3 
+#&gt; 148 Lettele                            3       1          33.3 
+#&gt; 149 Lutjebroek                         3       1          33.3 
+#&gt; 150 Mantgum                            3       1          33.3 
+#&gt; 151 Maurik                             3       1          33.3 
+#&gt; 152 Megen                              3       1          33.3 
+#&gt; 153 Mheer                              3       1          33.3 
+#&gt; 154 Middelstum                         3       1          33.3 
+#&gt; 155 Molenhoek                          3       1          33.3 
+#&gt; 156 Odiliapeel                         3       1          33.3 
+#&gt; 157 Oeffelt                            3       1          33.3 
+#&gt; 158 Oosterblokker                      3       1          33.3 
+#&gt; 159 Oosterwolde Gld                    3       1          33.3 
+#&gt; 160 Ophemert                           3       1          33.3 
+#&gt; 161 Overasselt                         3       1          33.3 
+#&gt; 162 Pannerden                          3       1          33.3 
+#&gt; 163 Pesse                              3       1          33.3 
+#&gt; 164 Renesse                            3       1          33.3 
+#&gt; 165 Schin op Geul                      3       1          33.3 
+#&gt; 166 Sluis                              3       1          33.3 
+#&gt; 167 Vessem                             3       1          33.3 
+#&gt; 168 Waarland                           3       1          33.3 
+#&gt; 169 Well L                             3       1          33.3 
+#&gt; 170 Wergea                             3       1          33.3 
+#&gt; 171 Werkhoven                          3       1          33.3 
+#&gt; 172 Wijdewormer                        3       1          33.3 
+#&gt; 173 Witmarsum                          3       1          33.3 
+#&gt; 174 Zaamslag                           3       1          33.3 
+#&gt; 175 Zegveld                            3       1          33.3 
+#&gt; 176 Zieuwent                           3       1          33.3 
+#&gt; 177 Zwaanshoek                         3       1          33.3 
+#&gt; 178 Oudewater                         14       5          35.7 
+#&gt; 179 Huissen                           11       4          36.4 
+#&gt; 180 Nieuwleusen                       11       4          36.4 
+#&gt; 181 Scherpenzeel                      11       4          36.4 
+#&gt; 182 IJsselstein                       30      11          36.7 
+#&gt; 183 Enkhuizen                         19       7          36.8 
+#&gt; 184 Goor                              19       7          36.8 
+#&gt; 185 &#39;s-Hertogenbosch                  96      36          37.5 
+#&gt; 186 Oirschot                          16       6          37.5 
+#&gt; 187 Hengelo (Gld)                      8       3          37.5 
+#&gt; 188 Koog aan de Zaan                   8       3          37.5 
+#&gt; 189 Nootdorp                           8       3          37.5 
+#&gt; 190 Nuth                               8       3          37.5 
+#&gt; 191 Oude Pekela                        8       3          37.5 
+#&gt; 192 Panningen                          8       3          37.5 
+#&gt; 193 Reusel                             8       3          37.5 
+#&gt; 194 Schaijk                            8       3          37.5 
+#&gt; 195 Vaals                              8       3          37.5 
+#&gt; 196 Zoetermeer                        87      33          37.9 
+#&gt; 197 Winterswijk                       21       8          38.1 
+#&gt; 198 Staphorst                         13       5          38.5 
+#&gt; 199 Rosmalen                          36      14          38.9 
+#&gt; 200 Almelo                            61      24          39.3 
+#&gt; 201 Heerenveen                        33      13          39.4 
+#&gt; 202 Barendrecht                       35      14          40   
+#&gt; 203 Duiven                            20       8          40   
+#&gt; 204 Blaricum                          10       4          40   
+#&gt; 205 Boekel                            10       4          40   
+#&gt; 206 Hoogkarspel                       10       4          40   
+#&gt; 207 Poortugaal                        10       4          40   
+#&gt; 208 Reeuwijk                          10       4          40   
+#&gt; 209 &#39;s-Gravenpolder                    5       2          40   
+#&gt; 210 Baarlo                             5       2          40   
+#&gt; 211 Balk                               5       2          40   
+#&gt; 212 Bergambacht                        5       2          40   
+#&gt; 213 Biddinghuizen                      5       2          40   
+#&gt; 214 Blijham                            5       2          40   
+#&gt; 215 Bocholtz                           5       2          40   
+#&gt; 216 Colmschate                         5       2          40   
+#&gt; 217 de Lutte                           5       2          40   
+#&gt; 218 Doornspijk                         5       2          40   
+#&gt; 219 Elspeet                            5       2          40   
+#&gt; 220 Fijnaart                           5       2          40   
+#&gt; 221 Gilze                              5       2          40   
+#&gt; 222 Gramsbergen                        5       2          40   
+#&gt; 223 Havelte                            5       2          40   
+#&gt; 224 Hedel                              5       2          40   
+#&gt; 225 Heusden                            5       2          40   
+#&gt; 226 Heythuysen                         5       2          40   
+#&gt; 227 Koudekerk aan den Rijn             5       2          40   
+#&gt; 228 Loon op Zand                       5       2          40   
+#&gt; 229 Maasland                           5       2          40   
+#&gt; 230 Meijel                             5       2          40   
+#&gt; 231 Moergestel                         5       2          40   
+#&gt; 232 Nieuw-Amsterdam                    5       2          40   
+#&gt; 233 Noord-Scharwoude                   5       2          40   
+#&gt; 234 Nuland                             5       2          40   
+#&gt; 235 Ospel                              5       2          40   
+#&gt; 236 Ouddorp                            5       2          40   
+#&gt; 237 Rijsbergen                         5       2          40   
+#&gt; 238 Ruinerwold                         5       2          40   
+#&gt; 239 Santpoort-Noord                    5       2          40   
+#&gt; 240 Santpoort-Zuid                     5       2          40   
+#&gt; 241 Schalkhaar                         5       2          40   
+#&gt; 242 Scheemda                           5       2          40   
+#&gt; 243 Schinveld                          5       2          40   
+#&gt; 244 Sint Pancras                       5       2          40   
+#&gt; 245 Surhuisterveen                     5       2          40   
+#&gt; 246 Swifterbant                        5       2          40   
+#&gt; 247 Ten Boer                           5       2          40   
+#&gt; 248 Ulvenhout                          5       2          40   
+#&gt; 249 Westzaan                           5       2          40   
+#&gt; 250 Wijk en Aalburg                    5       2          40   
+#&gt; 251 Wilnis                             5       2          40   
+#&gt; 252 Woudrichem                         5       2          40   
+#&gt; 253 Wouw                               5       2          40   
+#&gt; 254 Venray                            22       9          40.9 
+#&gt; 255 Vriezenveen                       17       7          41.2 
+#&gt; 256 Nijmegen                         135      56          41.5 
+#&gt; 257 Brielle                           12       5          41.7 
+#&gt; 258 Someren                           12       5          41.7 
+#&gt; 259 Waalre                            12       5          41.7 
+#&gt; 260 Purmerend                         55      23          41.8 
+#&gt; 261 Dronten                           19       8          42.1 
+#&gt; 262 Doetinchem                        35      15          42.9 
+#&gt; 263 Oegstgeest                        21       9          42.9 
+#&gt; 264 &#39;t Harde                           7       3          42.9 
+#&gt; 265 Berghem                            7       3          42.9 
+#&gt; 266 Budel                              7       3          42.9 
+#&gt; 267 Dreumel                            7       3          42.9 
+#&gt; 268 Enter                              7       3          42.9 
+#&gt; 269 Gendt                              7       3          42.9 
+#&gt; 270 Heeswijk-Dinther                   7       3          42.9 
+#&gt; 271 Kruiningen                         7       3          42.9 
+#&gt; 272 Liessel                            7       3          42.9 
+#&gt; 273 Loenen aan de Vecht                7       3          42.9 
+#&gt; 274 Markelo                            7       3          42.9 
+#&gt; 275 Ter Aar                            7       3          42.9 
+#&gt; 276 Ter Apel                           7       3          42.9 
+#&gt; 277 Voerendaal                         7       3          42.9 
+#&gt; 278 Zaandijk                           7       3          42.9 
+#&gt; 279 Hengelo                           60      26          43.3 
+#&gt; 280 Baarn                             23      10          43.5 
+#&gt; 281 Nijkerk                           23      10          43.5 
+#&gt; 282 Bergeijk                           9       4          44.4 
+#&gt; 283 Denekamp                           9       4          44.4 
+#&gt; 284 Heerde                             9       4          44.4 
+#&gt; 285 Hulst                              9       4          44.4 
+#&gt; 286 Jubbega                            9       4          44.4 
+#&gt; 287 Mierlo                             9       4          44.4 
+#&gt; 288 Oosterbeek                         9       4          44.4 
+#&gt; 289 Roelofarendsveen                   9       4          44.4 
+#&gt; 290 Wormerveer                         9       4          44.4 
+#&gt; 291 Zundert                            9       4          44.4 
+#&gt; 292 Zwanenburg                         9       4          44.4 
+#&gt; 293 Leidschendam                      29      13          44.8 
+#&gt; 294 Veldhoven                         31      14          45.2 
+#&gt; 295 &#39;s-Gravenhage                    411     186          45.3 
+#&gt; 296 Veenendaal                        53      24          45.3 
+#&gt; 297 Badhoevedorp                      11       5          45.5 
+#&gt; 298 Hasselt                           11       5          45.5 
+#&gt; 299 Joure                             11       5          45.5 
+#&gt; 300 Oosterwolde                       11       5          45.5 
+#&gt; 301 Reuver                            11       5          45.5 
+#&gt; 302 Rijen                             11       5          45.5 
+#&gt; 303 Wezep                             11       5          45.5 
+#&gt; 304 Zaltbommel                        11       5          45.5 
+#&gt; 305 Zoeterwoude                       11       5          45.5 
+#&gt; 306 Voorburg                          24      11          45.8 
+#&gt; 307 Wijchen                           26      12          46.2 
+#&gt; 308 Asten                             13       6          46.2 
+#&gt; 309 Boxmeer                           13       6          46.2 
+#&gt; 310 Veendam                           13       6          46.2 
+#&gt; 311 Tiel                              30      14          46.7 
+#&gt; 312 Aalsmeer                          15       7          46.7 
+#&gt; 313 Houten                            32      15          46.9 
+#&gt; 314 Delfzijl                          17       8          47.1 
+#&gt; 315 Schagen                           17       8          47.1 
+#&gt; 316 Hellevoetsluis                    19       9          47.4 
+#&gt; 317 Geldrop                           21      10          47.6 
+#&gt; 318 Diemen                            23      11          47.8 
+#&gt; 319 Goes                              23      11          47.8 
+#&gt; 320 Naaldwijk                         23      11          47.8 
+#&gt; 321 Oosterhout                        27      13          48.1 
+#&gt; 322 Vlissingen                        27      13          48.1 
+#&gt; 323 Helmond                           58      28          48.3 
+#&gt; 324 Waddinxveen                       31      15          48.4 
+#&gt; 325 Assen                             47      23          48.9</code></pre>
+<pre class="r test"><code># how voted jochem
+
+js_df_postalcode %&gt;%
+    filter(city == &quot;Berg en Dal&quot;) %&gt;%
+    select(Locatie, VVD:Wij.zijn.Nederland) %&gt;%
+    gather(key = &quot;party&quot;, value = &quot;votes&quot;, -Locatie) %&gt;%
+    group_by(party) %&gt;%
+    summarise(total_votes = sum(votes, na.rm = TRUE)) %&gt;%
+    mutate(prc = (total_votes/sum(total_votes, na.rm = TRUE)) * 100) %&gt;%
+    arrange(desc(prc))</code></pre>
+<pre class="test2"><code>#&gt; # A tibble: 32 × 3
+#&gt;    party total_votes   prc
+#&gt;    &lt;chr&gt;       &lt;dbl&gt; &lt;dbl&gt;
+#&gt;  1 D66           346 26.7 
+#&gt;  2 VVD           232 17.9 
+#&gt;  3 GL            180 13.9 
+#&gt;  4 PvdD          102  7.88
+#&gt;  5 PVV            69  5.33
+#&gt;  6 SP             68  5.26
+#&gt;  7 CDA            63  4.87
+#&gt;  8 Volt           54  4.17
+#&gt;  9 PvdA           50  3.86
+#&gt; 10 FvD            35  2.70
+#&gt; # … with 22 more rows</code></pre>
+<pre class="r test"><code># https://en.wikipedia.org/wiki/Democrats_66</code></pre>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
