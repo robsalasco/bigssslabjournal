@@ -12,7 +12,7 @@
 <meta name="author" content="Rob Salas" />
 
 
-<title>Journal 1</title>
+<title>Journal 5</title>
 
 <script src="site_libs/header-attrs-2.14/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -369,61 +369,179 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Journal 1</h1>
+<h1 class="title toc-ignore">Journal 5</h1>
 <h4 class="author">Rob Salas</h4>
 
 </div>
 
 
-<p>Last compiled on July, 2022</p>
-<p><br></p>
-<hr />
-<p><strong>For this BIGSSS we will use election results (at the polling
-station-level) to tap into the degree of polarization. What kind of
-polarization are we measuring and trying to explain?</strong></p>
-<p>Political polarization based in the opinions of different parties
-about a certain topic. We have to put the parties somewhere in the
-political spectrum and evaluate the degree of polarization.</p>
-<p><strong>How would you determine the position of parties on specific
-political topics with data that is readily available? And, which
-topic(s) would you use to determine the level of political polarization
-(in the NL)?</strong></p>
-<p>Votations in the parlament, their manifestos or media sources (public
-debates).</p>
-<ul>
-<li>inmigration attitudes or opinions on migrants</li>
-<li>crime attitudes… How to solve the problem?</li>
-</ul>
-<p><strong>Which theoretical article on political polarization should we
-definitely all read for this summer school? Please provide a reference
-and motivate your answer.</strong></p>
-<p>I’ve found a working paper on SocArXiv (<a
-href="https://osf.io/preprints/socarxiv/e5vp8/"
-class="uri">https://osf.io/preprints/socarxiv/e5vp8/</a>) which looks
-interesting to me because it resumes a good number of measures of
-polarization. The value of the paper I think it’s related to how it
-provides a guide to deal with different approximations on different
-scales because when we talk about polarization there’s no one-fits-all
-choice.</p>
-<p><strong>Please summarize some of the key or defining features of (a
-measure of) polarization.</strong></p>
-<p>Joan Esteban and Debraj Ray propose a measure to quantify the
-distance of clustered groups in a distribution. Can be more than two
-cluster but the members share same attributes with others but they’re
-different from the members of others clusters so groups are heterogeneus
-inside but heterogeneus among others.</p>
-<pre class="r test"><code>if (method == &quot;sq&quot;) {
+<div id="benchmarking" class="section level2">
+<h2>Benchmarking</h2>
+<pre class="r"><code>library(&quot;compiler&quot;)
+library(&quot;readr&quot;)
+library(&quot;dplyr&quot;)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>library(&quot;tidyr&quot;)
 
-    distmatrix &lt;- rbind(pbar, positions)
+fPvar &lt;- function(votes, positions, method = &quot;euclidean&quot;) {
+  positions &lt;- positions * 2  #this function wants a range of 2
+  distances &lt;- as.matrix(dist(positions, method = method))
+  votes_mat &lt;- votes %o% votes
+  diag(votes_mat)[diag(votes_mat) &gt; 1] &lt;- diag(votes_mat)[diag(votes_mat) &gt; 1] - 1
+  Pvar &lt;- Hmisc::wtd.var(as.numeric(distances), as.numeric(votes_mat))
+  return(Pvar)
+}
+fPvar &lt;- cmpfun(fPvar)
 
-    distances = matrix(NA, nrow(distmatrix), ncol(distmatrix))
-
-    for (i in 1:nrow(distmatrix)) {
-        for (j in 1:nrow(distmatrix)) {
-            distances[i, ] = (distmatrix[i, ] - distmatrix[j, ])^2
-        }
+fPV &lt;- function(votes, positions, method = &quot;euclidean&quot;) {
+  shares &lt;- votes/sum(votes, na.rm = TRUE)
+  pbar &lt;- rep(NA, NCOL(positions))
+  pbar &lt;- as.numeric(t(shares) %*% positions)  #center of mass / mean position
+  
+  # distances to mean
+  if (method != &quot;sq&quot;) {
+    if (NCOL(positions) == 1) {
+      distances &lt;- as.matrix(stats::dist(c(pbar, positions), method = method))[, 1][-1]
+    } else {
+      distances &lt;- as.matrix(stats::dist(rbind(pbar, positions), method = method))[, 1][-1]
     }
-}</code></pre>
+  }
+  # if (method==&#39;sq&#39;) {distances &lt;- ??}
+  
+  # defining the constant
+  if (method == &quot;euclidean&quot;) {
+    k &lt;- 2/sqrt(NCOL(positions))
+  }
+  if (method == &quot;manhattan&quot;) {
+    k &lt;- 2/NCOL(positions)
+  }
+  if (method == &quot;sq&quot;) {
+    k &lt;- 1
+  }
+  PV &lt;- k * sum(shares * distances)
+  return(PV)
+}
+fPV &lt;- cmpfun(fPV)
+
+fPER &lt;- function(alpha = 1, votes, positions, method = &quot;euclidean&quot;) {
+  positions &lt;- positions
+  distances &lt;- as.matrix(stats::dist(positions, method = method))
+  shares &lt;- votes/sum(votes, na.rm = TRUE)
+  sharesi &lt;- shares^(1 + alpha)
+  sharesj &lt;- shares
+  ER &lt;- as.numeric(sharesi %*% distances %*% sharesj)
+  return(ER)
+}
+
+fPER &lt;- cmpfun(fPER)
+
+#----
+
+library(purrr)
+library(future)
+library(furrr)
+
+load(&quot;./data/processed/20220708polling_df&quot;)
+
+js_df &lt;- x
+rm(x)
+
+positions_df &lt;- read_csv2(&quot;./data/kieskompas_positie_partijen.csv&quot;)  #change to your own file!!</code></pre>
+<pre><code>## ℹ Using &quot;&#39;,&#39;&quot; as decimal and &quot;&#39;.&#39;&quot; as grouping mark. Use `read_delim()` for more control.</code></pre>
+<pre><code>## Rows: 17 Columns: 5
+## ── Column specification ────────────────────────────────────────────────────────────────────────────
+## Delimiter: &quot;;&quot;
+## chr (1): partij
+## dbl (4): links (-x), progressief (y), x, y
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<pre class="r"><code>js_df &lt;- ungroup(js_df)
+
+js_df$Pvar &lt;- rep(NA, nrow(js_df))
+js_df$PER &lt;- rep(NA, nrow(js_df))
+js_df$PV &lt;- rep(NA, nrow(js_df))
+
+# I will use dimensions as above, but you will need to tweak of course.
+positions &lt;- (cbind(positions_df$x, positions_df$y) + 2)/4  #to range 0-1
+
+
+parties &lt;- c(&quot;BIJ1&quot;, &quot;PvdD&quot;, &quot;GL&quot;, &quot;SP&quot;, &quot;PvdA&quot;, &quot;DENK&quot;, &quot;Volt&quot;, &quot;D66&quot;, &quot;CU&quot;, &quot;PLUS50&quot;,
+             &quot;PVV&quot;, &quot;CDA&quot;, &quot;BBB&quot;, &quot;SGP&quot;, &quot;VVD&quot;, &quot;JA21&quot;, &quot;FvD&quot;)
+
+parties</code></pre>
+<pre><code>##  [1] &quot;BIJ1&quot;   &quot;PvdD&quot;   &quot;GL&quot;     &quot;SP&quot;     &quot;PvdA&quot;   &quot;DENK&quot;   &quot;Volt&quot;   &quot;D66&quot;    &quot;CU&quot;     &quot;PLUS50&quot;
+## [11] &quot;PVV&quot;    &quot;CDA&quot;    &quot;BBB&quot;    &quot;SGP&quot;    &quot;VVD&quot;    &quot;JA21&quot;   &quot;FvD&quot;</code></pre>
+<pre class="r"><code>#DOIT
+
+library(rbenchmark)
+
+benchmark(&quot;standard&quot; = {
+  for (i in 1:nrow(js_df)) {
+    votes &lt;- c(js_df$BIJ1[i], js_df$PvdD[i], js_df$GL[i], js_df$SP[i], js_df$PvdA[i], js_df$DENK[i],
+               js_df$Volt[i], js_df$D66[i], js_df$CU[i], js_df$PLUS50[i], js_df$PVV[i], js_df$CDA[i], js_df$BBB[i],
+               js_df$SGP[i], js_df$VVD[i], js_df$JA21[i], js_df$FvD[i])
+    js_df$Pvar[i] &lt;- fPvar(votes = votes, positions = positions)
+    js_df$PER[i] &lt;- fPER(votes = votes, positions = positions)
+    js_df$PV[i] &lt;- fPV(votes = votes, positions = positions)
+  }
+},
+  &quot;rowwise&quot; = {
+  js_df %&gt;% 
+    rowwise() %&gt;% 
+    mutate(Pvar = fPvar(votes = c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD), positions = positions)) %&gt;% 
+    mutate(PER = fPER(votes = c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD), positions = positions)) %&gt;% 
+    mutate(PV = fPV(votes = c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD), positions = positions)) %&gt;% 
+    select(Pvar, PER, PV)
+},
+&quot;rowwise_c_across&quot; = {
+  js_df %&gt;% 
+    select(Adres, all_of(parties)) %&gt;% 
+    rowwise() %&gt;% 
+    mutate(Pvar = list(fPvar(votes = c_across(BIJ1:FvD),positions = !!positions))) %&gt;% 
+    mutate(PER = list(fPER(votes = c_across(BIJ1:FvD),positions = !!positions))) %&gt;% 
+    mutate(PV = list(fPV(votes = c_across(BIJ1:FvD),positions = !!positions))) %&gt;% 
+    unnest(c(Pvar, PER, PV)) %&gt;% 
+    select(Pvar, PER, PV)
+},
+&quot;nested_and_map&quot; = {
+  js_df %&gt;% 
+    mutate(id = row_number()) %&gt;% 
+    group_by(id) %&gt;% 
+    summarise(parties_result = list(c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD))) %&gt;% 
+    mutate(Pvar = map_dbl(parties_result, function(x) fPvar(votes = x, positions = !!positions))) %&gt;% 
+    mutate(PER = map_dbl(parties_result, function(x) fPER(votes = x, positions = !!positions))) %&gt;% 
+    mutate(PV = map_dbl(parties_result, function(x) fPV(votes = x, positions = !!positions))) %&gt;% 
+    select(Pvar, PER, PV)
+},
+&quot;nested_and_furrr&quot; = {
+  plan(multisession, workers = availableCores() - 1)
+  
+  js_df %&gt;% 
+    mutate(id = row_number()) %&gt;% 
+    group_by(id) %&gt;% 
+    summarise(parties_result = list(c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD))) %&gt;% 
+    mutate(Pvar = future_map_dbl(parties_result, function(x) fPvar(votes = x, positions = !!positions))) %&gt;% 
+    mutate(PER = future_map_dbl(parties_result, function(x) fPER(votes = x, positions = !!positions))) %&gt;% 
+    mutate(PV = future_map_dbl(parties_result, function(x) fPV(votes = x, positions = !!positions))) %&gt;% 
+    select(Pvar, PER, PV)
+},
+replications = 3,
+columns = c(&quot;test&quot;, &quot;elapsed&quot;))</code></pre>
+<pre><code>##               test elapsed
+## 5 nested_and_furrr   7.774
+## 4   nested_and_map   1.873
+## 2          rowwise   2.211
+## 3 rowwise_c_across  19.177
+## 1         standard   3.813</code></pre>
+</div>
 
 
 

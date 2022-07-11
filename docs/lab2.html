@@ -347,6 +347,9 @@ div.tocify {
     <li>
       <a href="lab3.html">Day 3</a>
     </li>
+    <li>
+      <a href="lab4.html">Day 4</a>
+    </li>
   </ul>
 </li>
       </ul>
@@ -396,7 +399,7 @@ pop &lt;- pop[, c(4, 6:21)]
 pop %&gt;%
     select(party, immigration) %&gt;%
     group_by(party) %&gt;%
-    summarize(mean = mean(immigration, na.rm = TRUE), std = sd(immigration, na.rm = TRUE)) %&gt;%
+    summarise(mean = mean(immigration, na.rm = TRUE), std = sd(immigration, na.rm = TRUE)) %&gt;%
     arrange(desc(mean)) %&gt;%
     mutate(dif = lag(mean) - mean) %&gt;%
     print(n = 100)</code></pre>
@@ -432,14 +435,14 @@ reflecting the parties and column reflecting the aggregated scores on
 the picked dimension(s).</strong></p>
 <pre class="r test"><code>df_pop_agg &lt;- pop %&gt;%
     group_by(party) %&gt;%
-    summarize(pop_immigration = mean(immigration, na.rm = T))
+    summarise(pop_immigration = mean(immigration, na.rm = T))
 
 dpes &lt;- read_spss(&quot;./data/DPES2021 v1.0.sav&quot;)
 
 df &lt;- dpes %&gt;%
     select(S152, N76) %&gt;%
     group_by(N76) %&gt;%
-    summarize(dpes_sentence_death = median(S152, na.rm = T)) %&gt;%
+    summarise(dpes_sentence_death = median(S152, na.rm = T)) %&gt;%
     mutate(party = as.character(as_factor(N76))) %&gt;%
     select(-N76)
 

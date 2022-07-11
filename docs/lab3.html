@@ -347,6 +347,9 @@ div.tocify {
     <li>
       <a href="lab3.html">Day 3</a>
     </li>
+    <li>
+      <a href="lab4.html">Day 4</a>
+    </li>
   </ul>
 </li>
       </ul>
@@ -893,27 +896,21 @@ analysis yet. Just look at the data.</strong></p>
 
 js_df_postalcode %&gt;%
     filter(city == &quot;Berg en Dal&quot;) %&gt;%
-    select(Locatie, VVD:Wij.zijn.Nederland) %&gt;%
-    gather(key = &quot;party&quot;, value = &quot;votes&quot;, -Locatie) %&gt;%
-    group_by(party) %&gt;%
-    summarise(total_votes = sum(votes, na.rm = TRUE)) %&gt;%
-    mutate(prc = (total_votes/sum(total_votes, na.rm = TRUE)) * 100) %&gt;%
-    arrange(desc(prc))</code></pre>
-<pre class="test2"><code>#&gt; # A tibble: 32 × 3
-#&gt;    party total_votes   prc
-#&gt;    &lt;chr&gt;       &lt;dbl&gt; &lt;dbl&gt;
-#&gt;  1 D66           346 26.7 
-#&gt;  2 VVD           232 17.9 
-#&gt;  3 GL            180 13.9 
-#&gt;  4 PvdD          102  7.88
-#&gt;  5 PVV            69  5.33
-#&gt;  6 SP             68  5.26
-#&gt;  7 CDA            63  4.87
-#&gt;  8 Volt           54  4.17
-#&gt;  9 PvdA           50  3.86
-#&gt; 10 FvD            35  2.70
-#&gt; # … with 22 more rows</code></pre>
-<pre class="r test"><code># https://en.wikipedia.org/wiki/Democrats_66</code></pre>
+    select(Locatie, Adres, VVD:Wij.zijn.Nederland)</code></pre>
+<pre class="test2"><code>#&gt;   Locatie  Adres VVD PVV CDA D66  GL SP PvdA CU PvdD PLUS50 SGP DENK FvD BIJ1 JA21 CODE.ORANJE Volt
+#&gt; 1    SB26 6571BM 125  46  36 213 110 41   35  8   62      8   3    2  29    6   23           0   34
+#&gt; 2    SB27 6572AK 107  23  27 133  70 27   15  8   40      1   0    1   6    4   11           2   20
+#&gt;   NIDA Piratenpartij LP..Libertaire.Partij. JONG Splinter BBB NLBeter Lijst.Henk.Krol OPRECHT
+#&gt; 1    0             2                      2    1        3   2       1               0       0
+#&gt; 2    0             2                      1    2        0   0       0               1       0
+#&gt;   JEZUS.LEEFT Trots.op.Nederland..TROTS. U.Buntu.Connected.Front Blanco..Zeven..A.J.L.B..
+#&gt; 1           0                          0                      NA                        1
+#&gt; 2           0                          0                      NA                        0
+#&gt;   Partij.van.de.Eenheid Wij.zijn.Nederland
+#&gt; 1                    NA                 NA
+#&gt; 2                    NA                 NA</code></pre>
+<pre class="r test"><code>fsave(js_df2, &quot;polling_df&quot;)</code></pre>
+<pre class="test2"><code>#&gt; [1] &quot;SAVED: ./data/processed/20220711polling_df&quot;</code></pre>
 </div>
 
 

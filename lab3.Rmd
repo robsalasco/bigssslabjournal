@@ -224,7 +224,7 @@ library(tidyr)
 
 postcodes <- read_delim("data/postcode_NL.csv", 
                         delim = ";",
-                        col_select = c(2,6,7,9,10,14) ,
+                        col_select = c(2,6,7,9,10,14),
                         col_names = FALSE) %>% 
   rename(postalcode=X2, from=X6, to=X7, address=X9, city=X10, province=X14)
 
@@ -264,20 +264,13 @@ js_df_postalcode %>%
 
 js_df_postalcode %>% 
   filter(city=="Berg en Dal") %>% 
-  select(Locatie,VVD:Wij.zijn.Nederland) %>% 
-  gather(key="party", value="votes", -Locatie) %>% 
-  group_by(party) %>% 
-  summarise(total_votes=sum(votes, na.rm = TRUE)) %>% 
-  mutate(prc=(total_votes/sum(total_votes, na.rm = TRUE))*100) %>% 
-  arrange(desc(prc))
+  select(Locatie, Adres,VVD:Wij.zijn.Nederland)
   
-#https://en.wikipedia.org/wiki/Democrats_66
 ```
 
 
+```{r}
+fsave(js_df2, "polling_df")
 
-
-
-
-
+```
 

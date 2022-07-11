@@ -82,7 +82,7 @@ pop <- pop[, c(4, 6:21)]
 pop %>% 
   select(party, immigration) %>% 
   group_by(party) %>% 
-  summarize(mean = mean(immigration, na.rm = TRUE),
+  summarise(mean = mean(immigration, na.rm = TRUE),
             std = sd(immigration, na.rm = TRUE)) %>% 
   arrange(desc(mean)) %>% 
   mutate(dif=lag(mean)-mean) %>% 
@@ -111,14 +111,14 @@ df_pop %>%
 
 df_pop_agg <- pop %>% 
   group_by(party) %>% 
-  summarize(pop_immigration = mean(immigration, na.rm = T))
+  summarise(pop_immigration = mean(immigration, na.rm = T))
 
 dpes <- read_spss("./data/DPES2021 v1.0.sav")
 
 df <- dpes %>% 
   select(S152, N76) %>% 
   group_by(N76) %>% 
-  summarize(dpes_sentence_death = median(S152, na.rm = T)) %>% 
+  summarise(dpes_sentence_death = median(S152, na.rm = T)) %>% 
   mutate(party = as.character(as_factor(N76))) %>% 
   select(-N76)
 
