@@ -18,10 +18,10 @@ navbar:
         href: lab2.html
       - text: "Day 3"
         href: lab3.html        
+      - text: "Benchmarking"
+        href: benchmarking.html
       - text: "Day 4"
-        href: lab4.html           
-        # here, other .Rmds can be added
-
+        href: lab4.html   
 
   right:
   - icon: fab fa-github

@@ -12,7 +12,7 @@
 <meta name="author" content="Rob Salas" />
 
 
-<title>Journal 5</title>
+<title>Journal 6</title>
 
 <script src="site_libs/header-attrs-2.14/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -36,6 +36,349 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/htmlwidgets-1.5.4/htmlwidgets.js"></script>
+<script src="site_libs/rglWebGL-binding-0.109.2/rglWebGL.js"></script>
+<link href="site_libs/rglwidgetClass-0.109.2/rgl.css" rel="stylesheet" />
+<script src="site_libs/rglwidgetClass-0.109.2/rglClass.min.js"></script>
+<script type = "text/plain" id = "rgl-vertex-shader">
+#line 2 1
+// File 1 is the vertex shader
+#ifdef GL_ES
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+#endif
+
+attribute vec3 aPos;
+attribute vec4 aCol;
+uniform mat4 mvMatrix;
+uniform mat4 prMatrix;
+varying vec4 vCol;
+varying vec4 vPosition;
+
+#ifdef NEEDS_VNORMAL
+attribute vec3 aNorm;
+uniform mat4 normMatrix;
+varying vec4 vNormal;
+#endif
+
+#if defined(HAS_TEXTURE) || defined (IS_TEXT)
+attribute vec2 aTexcoord;
+varying vec2 vTexcoord;
+#endif
+
+#ifdef FIXED_SIZE
+uniform vec3 textScale;
+#endif
+
+#ifdef FIXED_QUADS
+attribute vec3 aOfs;
+#endif
+
+#ifdef IS_TWOSIDED
+#ifdef HAS_NORMALS
+varying float normz;
+uniform mat4 invPrMatrix;
+#else
+attribute vec3 aPos1;
+attribute vec3 aPos2;
+varying float normz;
+#endif
+#endif // IS_TWOSIDED
+
+#ifdef FAT_LINES
+attribute vec3 aNext;
+attribute vec2 aPoint;
+varying vec2 vPoint;
+varying float vLength;
+uniform float uAspect;
+uniform float uLwd;
+#endif
+
+
+void main(void) {
+  
+#ifndef IS_BRUSH
+#if defined(NCLIPPLANES) || !defined(FIXED_QUADS) || defined(HAS_FOG)
+  vPosition = mvMatrix * vec4(aPos, 1.);
+#endif
+  
+#ifndef FIXED_QUADS
+  gl_Position = prMatrix * vPosition;
+#endif
+#endif // !IS_BRUSH
+  
+#ifdef IS_POINTS
+  gl_PointSize = POINTSIZE;
+#endif
+  
+  vCol = aCol;
+  
+#ifdef NEEDS_VNORMAL
+  vNormal = normMatrix * vec4(-aNorm, dot(aNorm, aPos));
+#endif
+  
+#ifdef IS_TWOSIDED
+#ifdef HAS_NORMALS
+  /* normz should be calculated *after* projection */
+  normz = (invPrMatrix*vNormal).z;
+#else
+  vec4 pos1 = prMatrix*(mvMatrix*vec4(aPos1, 1.));
+  pos1 = pos1/pos1.w - gl_Position/gl_Position.w;
+  vec4 pos2 = prMatrix*(mvMatrix*vec4(aPos2, 1.));
+  pos2 = pos2/pos2.w - gl_Position/gl_Position.w;
+  normz = pos1.x*pos2.y - pos1.y*pos2.x;
+#endif
+#endif // IS_TWOSIDED
+  
+#ifdef NEEDS_VNORMAL
+  vNormal = vec4(normalize(vNormal.xyz/vNormal.w), 1);
+#endif
+  
+#if defined(HAS_TEXTURE) || defined(IS_TEXT)
+  vTexcoord = aTexcoord;
+#endif
+  
+#if defined(FIXED_SIZE) && !defined(ROTATING)
+  vec4 pos = prMatrix * mvMatrix * vec4(aPos, 1.);
+  pos = pos/pos.w;
+  gl_Position = pos + vec4(aOfs*textScale, 0.);
+#endif
+  
+#if defined(IS_SPRITES) && !defined(FIXED_SIZE)
+  vec4 pos = mvMatrix * vec4(aPos, 1.);
+  pos = pos/pos.w + vec4(aOfs,  0.);
+  gl_Position = prMatrix*pos;
+#endif
+  
+#ifdef FAT_LINES
+  /* This code was inspired by Matt Deslauriers' code in 
+   https://mattdesl.svbtle.com/drawing-lines-is-hard */
+  vec2 aspectVec = vec2(uAspect, 1.0);
+  mat4 projViewModel = prMatrix * mvMatrix;
+  vec4 currentProjected = projViewModel * vec4(aPos, 1.0);
+  currentProjected = currentProjected/currentProjected.w;
+  vec4 nextProjected = projViewModel * vec4(aNext, 1.0);
+  vec2 currentScreen = currentProjected.xy * aspectVec;
+  vec2 nextScreen = (nextProjected.xy / nextProjected.w) * aspectVec;
+  float len = uLwd;
+  vec2 dir = vec2(1.0, 0.0);
+  vPoint = aPoint;
+  vLength = length(nextScreen - currentScreen)/2.0;
+  vLength = vLength/(vLength + len);
+  if (vLength > 0.0) {
+    dir = normalize(nextScreen - currentScreen);
+  }
+  vec2 normal = vec2(-dir.y, dir.x);
+  dir.x /= uAspect;
+  normal.x /= uAspect;
+  vec4 offset = vec4(len*(normal*aPoint.x*aPoint.y - dir), 0.0, 0.0);
+  gl_Position = currentProjected + offset;
+#endif
+  
+#ifdef IS_BRUSH
+  gl_Position = vec4(aPos, 1.);
+#endif
+}
+</script>
+<script type = "text/plain" id = "rgl-fragment-shader">
+#line 2 2
+// File 2 is the fragment shader
+#ifdef GL_ES
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+#endif
+varying vec4 vCol; // carries alpha
+varying vec4 vPosition;
+#if defined(HAS_TEXTURE) || defined (IS_TEXT)
+varying vec2 vTexcoord;
+uniform sampler2D uSampler;
+#endif
+
+#ifdef HAS_FOG
+uniform int uFogMode;
+uniform vec3 uFogColor;
+uniform vec4 uFogParms;
+#endif
+
+#if defined(IS_LIT) && !defined(FIXED_QUADS)
+varying vec4 vNormal;
+#endif
+
+#if NCLIPPLANES > 0
+uniform vec4 vClipplane[NCLIPPLANES];
+#endif
+
+#if NLIGHTS > 0
+uniform mat4 mvMatrix;
+#endif
+
+#ifdef IS_LIT
+uniform vec3 emission;
+uniform float shininess;
+#if NLIGHTS > 0
+uniform vec3 ambient[NLIGHTS];
+uniform vec3 specular[NLIGHTS]; // light*material
+uniform vec3 diffuse[NLIGHTS];
+uniform vec3 lightDir[NLIGHTS];
+uniform bool viewpoint[NLIGHTS];
+uniform bool finite[NLIGHTS];
+#endif
+#endif // IS_LIT
+
+#ifdef IS_TWOSIDED
+uniform bool front;
+varying float normz;
+#endif
+
+#ifdef FAT_LINES
+varying vec2 vPoint;
+varying float vLength;
+#endif
+
+void main(void) {
+  vec4 fragColor;
+#ifdef FAT_LINES
+  vec2 point = vPoint;
+  bool neg = point.y < 0.0;
+  point.y = neg ? (point.y + vLength)/(1.0 - vLength) :
+                 -(point.y - vLength)/(1.0 - vLength);
+#if defined(IS_TRANSPARENT) && defined(IS_LINESTRIP)
+  if (neg && length(point) <= 1.0) discard;
+#endif
+  point.y = min(point.y, 0.0);
+  if (length(point) > 1.0) discard;
+#endif // FAT_LINES
+  
+#ifdef ROUND_POINTS
+  vec2 coord = gl_PointCoord - vec2(0.5);
+  if (length(coord) > 0.5) discard;
+#endif
+  
+#if NCLIPPLANES > 0
+  for (int i = 0; i < NCLIPPLANES; i++)
+    if (dot(vPosition, vClipplane[i]) < 0.0) discard;
+#endif
+    
+#ifdef FIXED_QUADS
+    vec3 n = vec3(0., 0., 1.);
+#elif defined(IS_LIT)
+    vec3 n = normalize(vNormal.xyz);
+#endif
+    
+#ifdef IS_TWOSIDED
+    if ((normz <= 0.) != front) discard;
+#endif
+    
+#ifdef IS_LIT
+    vec3 eye = normalize(-vPosition.xyz/vPosition.w);
+    vec3 lightdir;
+    vec4 colDiff;
+    vec3 halfVec;
+    vec4 lighteffect = vec4(emission, 0.);
+    vec3 col;
+    float nDotL;
+#ifdef FIXED_QUADS
+    n = -faceforward(n, n, eye);
+#endif
+    
+#if NLIGHTS > 0
+    for (int i=0;i<NLIGHTS;i++) {
+      colDiff = vec4(vCol.rgb * diffuse[i], vCol.a);
+      lightdir = lightDir[i];
+      if (!viewpoint[i])
+        lightdir = (mvMatrix * vec4(lightdir, 1.)).xyz;
+      if (!finite[i]) {
+        halfVec = normalize(lightdir + eye);
+      } else {
+        lightdir = normalize(lightdir - vPosition.xyz/vPosition.w);
+        halfVec = normalize(lightdir + eye);
+      }
+      col = ambient[i];
+      nDotL = dot(n, lightdir);
+      col = col + max(nDotL, 0.) * colDiff.rgb;
+      col = col + pow(max(dot(halfVec, n), 0.), shininess) * specular[i];
+      lighteffect = lighteffect + vec4(col, colDiff.a);
+    }
+#endif
+    
+#else // not IS_LIT
+    vec4 colDiff = vCol;
+    vec4 lighteffect = colDiff;
+#endif
+    
+#ifdef IS_TEXT
+    vec4 textureColor = lighteffect*texture2D(uSampler, vTexcoord);
+#endif
+    
+#ifdef HAS_TEXTURE
+#ifdef TEXTURE_rgb
+    vec4 textureColor = lighteffect*vec4(texture2D(uSampler, vTexcoord).rgb, 1.);
+#endif
+    
+#ifdef TEXTURE_rgba
+    vec4 textureColor = lighteffect*texture2D(uSampler, vTexcoord);
+#endif
+    
+#ifdef TEXTURE_alpha
+    vec4 textureColor = texture2D(uSampler, vTexcoord);
+    float luminance = dot(vec3(1.,1.,1.), textureColor.rgb)/3.;
+    textureColor =  vec4(lighteffect.rgb, lighteffect.a*luminance);
+#endif
+    
+#ifdef TEXTURE_luminance
+    vec4 textureColor = vec4(lighteffect.rgb*dot(texture2D(uSampler, vTexcoord).rgb, vec3(1.,1.,1.))/3., lighteffect.a);
+#endif
+    
+#ifdef TEXTURE_luminance_alpha
+    vec4 textureColor = texture2D(uSampler, vTexcoord);
+    float luminance = dot(vec3(1.,1.,1.),textureColor.rgb)/3.;
+    textureColor = vec4(lighteffect.rgb*luminance, lighteffect.a*textureColor.a);
+#endif
+    
+    fragColor = textureColor;
+
+#elif defined(IS_TEXT)
+    if (textureColor.a < 0.1)
+      discard;
+    else
+      fragColor = textureColor;
+#else
+    fragColor = lighteffect;
+#endif // HAS_TEXTURE
+    
+#ifdef HAS_FOG
+    // uFogParms elements: x = near, y = far, z = fogscale, w = (1-sin(FOV/2))/(1+sin(FOV/2))
+    // In Exp and Exp2: use density = density/far
+    // fogF will be the proportion of fog
+    // Initialize it to the linear value
+    float fogF;
+    if (uFogMode > 0) {
+      fogF = (uFogParms.y - vPosition.z/vPosition.w)/(uFogParms.y - uFogParms.x);
+      if (uFogMode > 1)
+        fogF = mix(uFogParms.w, 1.0, fogF);
+      fogF = fogF*uFogParms.z;
+      if (uFogMode == 2)
+        fogF = 1.0 - exp(-fogF);
+      // Docs are wrong: use (density*c)^2, not density*c^2
+      // https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/mesa/swrast/s_fog.c#L58
+      else if (uFogMode == 3)
+        fogF = 1.0 - exp(-fogF*fogF);
+      fogF = clamp(fogF, 0.0, 1.0);
+      gl_FragColor = vec4(mix(fragColor.rgb, uFogColor, fogF), fragColor.a);
+    } else gl_FragColor = fragColor;
+#else
+    gl_FragColor = fragColor;
+#endif // HAS_FOG
+    
+}
+</script>
+<script src="site_libs/CanvasMatrix4-0.109.2/CanvasMatrix.min.js"></script>
 <link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
 <link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
 
@@ -348,6 +691,9 @@ div.tocify {
       <a href="lab3.html">Day 3</a>
     </li>
     <li>
+      <a href="benchmarking.html">Benchmarking</a>
+    </li>
+    <li>
       <a href="lab4.html">Day 4</a>
     </li>
   </ul>
@@ -369,178 +715,522 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Journal 5</h1>
+<h1 class="title toc-ignore">Journal 6</h1>
 <h4 class="author">Rob Salas</h4>
 
 </div>
 
 
-<div id="benchmarking" class="section level2">
-<h2>Benchmarking</h2>
-<pre class="r"><code>library(&quot;compiler&quot;)
-library(&quot;readr&quot;)
-library(&quot;dplyr&quot;)</code></pre>
-<pre><code>## 
-## Attaching package: &#39;dplyr&#39;</code></pre>
-<pre><code>## The following objects are masked from &#39;package:stats&#39;:
-## 
-##     filter, lag</code></pre>
-<pre><code>## The following objects are masked from &#39;package:base&#39;:
-## 
-##     intersect, setdiff, setequal, union</code></pre>
-<pre class="r"><code>library(&quot;tidyr&quot;)
-
-fPvar &lt;- function(votes, positions, method = &quot;euclidean&quot;) {
-  positions &lt;- positions * 2  #this function wants a range of 2
-  distances &lt;- as.matrix(dist(positions, method = method))
-  votes_mat &lt;- votes %o% votes
-  diag(votes_mat)[diag(votes_mat) &gt; 1] &lt;- diag(votes_mat)[diag(votes_mat) &gt; 1] - 1
-  Pvar &lt;- Hmisc::wtd.var(as.numeric(distances), as.numeric(votes_mat))
-  return(Pvar)
-}
-fPvar &lt;- cmpfun(fPvar)
-
-fPV &lt;- function(votes, positions, method = &quot;euclidean&quot;) {
-  shares &lt;- votes/sum(votes, na.rm = TRUE)
-  pbar &lt;- rep(NA, NCOL(positions))
-  pbar &lt;- as.numeric(t(shares) %*% positions)  #center of mass / mean position
+<div id="spatial-functions" class="section level2">
+<h2>Spatial functions</h2>
+<pre class="r"><code># let us define a Moran&#39;s I function (heavily based on Moran.I of package ape) you can toggle
+# rowstandardization
+fMoranI &lt;- function(x, y = NULL, weight, scaled = FALSE, na.rm = FALSE, alternative = &quot;two.sided&quot;, rowstandardize = TRUE) {
+  if (is.null(y)) {
+    y &lt;- x
+  }
   
-  # distances to mean
-  if (method != &quot;sq&quot;) {
-    if (NCOL(positions) == 1) {
-      distances &lt;- as.matrix(stats::dist(c(pbar, positions), method = method))[, 1][-1]
+  if (dim(weight)[1] != dim(weight)[2])
+    stop(&quot;&#39;weight&#39; must be a square matrix&quot;)
+  nx &lt;- length(x)
+  ny &lt;- length(y)
+  if (dim(weight)[1] != nx | dim(weight)[1] != ny)
+    stop(&quot;&#39;weight&#39; must have as many rows as observations in &#39;x&#39; (and &#39;y&#39;, for the bivariate case) &quot;)
+  ei &lt;- -1/(nx - 1)
+  nas &lt;- is.na(x) | is.na(y)
+  if (any(nas)) {
+    if (na.rm) {
+      x &lt;- x[!nas]
+      y &lt;- y[!nas]
+      nx &lt;- length(x)
+      weight &lt;- weight[!nas, !nas]
     } else {
-      distances &lt;- as.matrix(stats::dist(rbind(pbar, positions), method = method))[, 1][-1]
+      warning(&quot;&#39;x&#39; and/or &#39;y&#39; have missing values: maybe you wanted to set na.rm = TRUE?&quot;)
+      return(list(observed = NA, expected = ei, sd = NA, p.value = NA))
     }
   }
-  # if (method==&#39;sq&#39;) {distances &lt;- ??}
+  if (rowstandardize) {
+    ROWSUM &lt;- rowSums(weight)
+    ROWSUM[ROWSUM == 0] &lt;- 1
+    weight &lt;- weight/ROWSUM
+  }
+  s &lt;- sum(weight)
+  mx &lt;- mean(x)
+  sx &lt;- x - mx
+  my &lt;- mean(y)
+  sy &lt;- y - my
+  v &lt;- sum(sx^2)
+  cv &lt;- sum(weight * sx %o% sy)
+  obs &lt;- (nx/s) * (cv/v)
+  cv_loc &lt;- rowSums(weight * sx %o% sy)
+  obs_loc &lt;- (nx/s) * (cv_loc/v)
+  if (scaled) {
+    i.max &lt;- (nx/s) * (sd(rowSums(weight) * sx)/sqrt(v/(nx - 1)))
+    obs &lt;- obs/i.max
+    obs_loc &lt;- obs_loc/i.max
+  }
+  S1 &lt;- 0.5 * sum((weight + t(weight))^2)
+  S2 &lt;- sum((apply(weight, 1, sum) + apply(weight, 2, sum))^2)
+  s.sq &lt;- s^2
+  k &lt;- (sum(sx^4)/nx)/(v/nx)^2
+  sdi &lt;- sqrt((nx * ((nx^2 - 3 * nx + 3) * S1 - nx * S2 + 3 * s.sq) - k * (nx * (nx - 1) * S1 - 2 *
+                                                                             nx * S2 + 6 * s.sq))/((nx - 1) * (nx - 2) * (nx - 3) * s.sq) - 1/((nx - 1)^2))
+  alternative &lt;- match.arg(alternative, c(&quot;two.sided&quot;, &quot;less&quot;, &quot;greater&quot;))
+  pv &lt;- pnorm(obs, mean = ei, sd = sdi)
+  if (alternative == &quot;two.sided&quot;)
+    pv &lt;- if (obs &lt;= ei)
+      2 * pv else 2 * (1 - pv)
+  if (alternative == &quot;greater&quot;)
+    pv &lt;- 1 - pv
+  list(observed = obs, expected = ei, sd = sdi, p.value = pv, observed_locals = obs_loc)
   
-  # defining the constant
-  if (method == &quot;euclidean&quot;) {
-    k &lt;- 2/sqrt(NCOL(positions))
-  }
-  if (method == &quot;manhattan&quot;) {
-    k &lt;- 2/NCOL(positions)
-  }
-  if (method == &quot;sq&quot;) {
-    k &lt;- 1
-  }
-  PV &lt;- k * sum(shares * distances)
-  return(PV)
+  
 }
-fPV &lt;- cmpfun(fPV)
+fMoranI &lt;- cmpfun(fMoranI)
 
-fPER &lt;- function(alpha = 1, votes, positions, method = &quot;euclidean&quot;) {
-  positions &lt;- positions
-  distances &lt;- as.matrix(stats::dist(positions, method = method))
-  shares &lt;- votes/sum(votes, na.rm = TRUE)
-  sharesi &lt;- shares^(1 + alpha)
-  sharesj &lt;- shares
-  ER &lt;- as.numeric(sharesi %*% distances %*% sharesj)
-  return(ER)
+# Density corrected Moran&#39;s I.
+fMoranIdens &lt;- function(x, y = NULL, proxmat, dens = NULL, N = length(x)) {
+  # Adapted from Anselin (1995, eq. 7, 10, 11)
+  # https://onlinelibrary.wiley.com/doi/epdf/10.1111/j.1538-4632.1995.tb00338.x dens: the
+  # proportion of individuals in each cell over the district population if individual level data
+  # dens is.null and N is simply length of input if we have aggregate data then N should be total
+  # population size (or actually just a large number)
+  if (is.null(y)) {
+    y &lt;- x
+  }
+  if (is.null(dens)) {
+    dens &lt;- rep(1/N, times = N)
+  }
+  
+  # correct scaling of opinions for densities #this is really inefficient, should use weighted
+  # var from hmsci
+  v1dens_ind &lt;- rep(x, times = (dens * N))
+  v1dens &lt;- (x - mean(v1dens_ind))/sd(v1dens_ind)
+  v2dens_ind &lt;- rep(y, times = (dens * N))
+  v2dens &lt;- (y - mean(v2dens_ind))/sd(v2dens_ind)
+  
+  # (density) weighted proximity matrix
+  w &lt;- proxmat
+  wdens &lt;- t(dens * t(w))
+  wdens &lt;- wdens/rowSums(wdens)
+  
+  # density and proximity weighted locals
+  localI &lt;- (v1dens * wdens %*% v2dens)  #formula 7
+  
+  # correct the normalization constants
+  m2 &lt;- sum(v1dens^2 * dens)
+  S0 &lt;- N  #we know the weight matrix for the individual level should add up to N
+  ydens &lt;- S0 * m2
+  globalI &lt;- sum(localI * dens * N)/ydens  # formula 10/11
+  
+  return(list(globalI = globalI, localI = as.numeric(localI)))
 }
+fMoranIdens &lt;- cmpfun(fMoranIdens)</code></pre>
+</div>
+<div id="function-to-generate-worlds" class="section level2">
+<h2>Function to generate worlds</h2>
+<pre class="r"><code># version 09-06-2007
 
-fPER &lt;- cmpfun(fPER)
 
-#----
+# function define world
+iniworld &lt;- function(N = 2000, cn = 4, h = 1, tc = 0.9, pg = c(0.5, 0.5), distropTN = TRUE, plotworld = TRUE,
+                     seed = NULL) {
+  # N= number of agents (even number) cn= number of clusters (even number) h= cluster homogeneity
+  # (0.5-1) tc= thinning constant. .9 means retain 90% pg= proportion of groups; length is number
+  # of groups distropTN= use truncated normal to generate opinions, default = false
+  
+  # in paper opinions [0,1], here [-1,1] in paper tc is 1 - tc
+  
+  if (is.null(seed))
+    seed &lt;- sample(45667:159876, 1)
+  
+  set.seed(seed)
+  
+  N_ori &lt;- N
+  
+  # functions
+  spher_to_cart &lt;- function(r, theta, phi) {
+    x = r * cos(phi) * sin(theta)
+    y = r * sin(theta) * sin(phi)
+    z = r * cos(theta)
+    coordinatesxyz &lt;- matrix(c(x, y, z), ncol = 3)
+    return(coordinatesxyz)
+  }
+  
+  distl &lt;- function(x) {
+    distVincentySphere(x, matlonglat, r = 1)
+  }
+  
+  # if tc&lt;1 we need to increase initial N, make sure to keep even number
+  if (tc &lt; 1) {
+    N &lt;- trunc(N/(tc * 10)) * 10
+  }
+  
+  # define (random) position of agents on sphere:
+  # http://mathworld.wolfram.com/SpherePointPicking.html
+  r &lt;- 1
+  phi &lt;- 2 * pi * runif(N)
+  theta &lt;- acos(2 * runif(N) - 1)
+  coordinatesxyz &lt;- spher_to_cart(r, theta, phi)
+  
+  phi_r &lt;- (360 * phi)/(2 * pi)
+  theta_r &lt;- (180 * theta)/pi
+  lat &lt;- 90 - theta_r
+  long &lt;- ifelse(phi_r &gt;= 0 &amp; phi_r &lt; 180, -phi_r, abs(phi_r - 360))
+  
+  matlonglat &lt;- matrix(c(long, lat), ncol = 2)
+  
+  # improve: we only need to calculate half
+  matlonglatlist &lt;- lapply(seq_len(nrow(matlonglat)), function(i) matlonglat[i, ])
+  
+  distl &lt;- function(x) {
+    distVincentySphere(x, matlonglat, r = 1)
+  }
+  
+  matdist &lt;- sapply(matlonglatlist, distl)
+  
+  # model segregation: could be improved. check existing packages.
+  parents &lt;- sample(1:N, cn)
+  groups &lt;- rep(NA, N)
+  # fix if cn==1
+  groups[parents] &lt;- sample(c(rep(1, round(cn * pg[1])), rep(-1, cn - round(cn * pg[1]))), cn, replace = FALSE)
+  
+  # to whom do children belong
+  clusterchildren &lt;- rep(NA, N)
+  
+  for (i in c(1:N)) {
+    if (!(i %in% parents)) {
+      # which parents is closest
+      clusterchildren[i] &lt;- parents[which(matdist[i, parents] == min(matdist[i, parents]))]
+      # give child same initial value as closest parent
+      group &lt;- groups[clusterchildren[i]]
+      # change value child depending of cluster homogeneity
+      groups[i] &lt;- ifelse(group == -1, sample(c(-1, 1), 1, prob = c(h, 1 - h)), sample(c(-1, 1),
+                                                                                       1, prob = c(1 - h, h)))
+    }
+  }
+  
+  # define opinions of agents
+  if (distropTN == TRUE) {
+    opinions &lt;- rtruncnorm(N, a = -1, b = 1, mean = 0, sd = 0.45)
+  }
+  # if(distropTN==FALSE) {opinions &lt;- runif(N, min = -1, max = 1)}
+  
+  # for (future) plotting
+  color &lt;- ifelse(groups == 1, &quot;blue&quot;, &quot;red&quot;)
+  
+  # thin clusters, make cluster boundaries sharper
+  if (tc &lt; 1) {
+    childIDi &lt;- sampletc &lt;- NA
+    # put in big function
+    for (i in 1:cn) {
+      childIDi &lt;- which(clusterchildren == parents[i])
+      distchildparenti &lt;- matdist[parents[i], childIDi]
+      # samplei &lt;- sample(childIDi, trunc(tc*length(childIDi)),
+      # prob=exp(-distchildparenti)^2)
+      cutoffdistance &lt;- quantile(distchildparenti, tc)
+      samplei &lt;- childIDi[distchildparenti &lt; cutoffdistance]
+      sampletc &lt;- c(sampletc, samplei)
+    }
+    clusterchildren &lt;- sampletc &lt;- sampletc[-1]
+    sampletc &lt;- c(sampletc, parents)
+    N_obs &lt;- length(sampletc)
+  }
+  
+  N &lt;- N_ori  #setting back to original input
+  
+  if (tc == 1) {
+    sampletc &lt;- NA
+    N_obs &lt;- N_ori
+  }
+  
+  if (plotworld &amp; tc == 1) {
+    .check3d()
+    rgl.close()
+    plot3d(coordinatesxyz, col = color, box = FALSE, axes = FALSE, xlab = &quot;&quot;, ylab = &quot;&quot;, zlab = &quot;&quot;,
+           size = 8, xlim = c(-1, 1), ylim = c(-1, 1), zlim = c(-1, 1))
+    rgl.spheres(0, 0, 0, radius = 0.995, color = &quot;grey&quot;)
+  }
+  
+  if (tc == 1) {
+    worldlist &lt;- list(seed, coordinatesxyz, color, groups, opinions, matdist, N, cn, h, tc, pg, N_obs,
+                      parents, clusterchildren, matlonglat)
+    names(worldlist) &lt;- c(&quot;seed&quot;, &quot;coordinatesxyz&quot;, &quot;color&quot;, &quot;groups&quot;, &quot;opinions&quot;, &quot;matdist&quot;, &quot;N&quot;,
+                          &quot;cn&quot;, &quot;h&quot;, &quot;tc&quot;, &quot;pg&quot;, &quot;N_obs&quot;, &quot;parents&quot;, &quot;clusterchildren&quot;, &quot;matlonglat&quot;)
+    return(worldlist)
+  }
+  
+  if (plotworld &amp; tc &lt; 1) {
+    .check3d()
+    rgl.close()
+    plot3d(coordinatesxyz[sampletc, ], col = color[sampletc], box = FALSE, axes = FALSE, xlab = &quot;&quot;,
+           ylab = &quot;&quot;, zlab = &quot;&quot;, size = 8, xlim = c(-1, 1), ylim = c(-1, 1), zlim = c(-1, 1))
+    rgl.spheres(0, 0, 0, radius = 0.995, color = &quot;grey&quot;)
+  }
+  
+  if (tc &lt; 1) {
+    worldlist &lt;- list(seed, coordinatesxyz[sampletc, ], color[sampletc], groups[sampletc], opinions[sampletc],
+                      matdist[sampletc, sampletc], N, cn, h, tc, pg, N_obs, parents, clusterchildren, matlonglat[sampletc,
+                      ])
+    names(worldlist) &lt;- c(&quot;seed&quot;, &quot;coordinatesxyz&quot;, &quot;color&quot;, &quot;groups&quot;, &quot;opinions&quot;, &quot;matdist&quot;, &quot;N&quot;,
+                          &quot;cn&quot;, &quot;h&quot;, &quot;tc&quot;, &quot;pg&quot;, &quot;N_obs&quot;, &quot;parents&quot;, &quot;clusterchildren&quot;, &quot;matlonglat&quot;)
+    return(worldlist)
+  }
+  
+  
+}</code></pre>
+</div>
+<div id="generate-world" class="section level2">
+<h2>Generate world</h2>
+<pre class="r"><code>N = c(100, 200, 300)
+cn &lt;- c(4, 8, 16)
+h &lt;- c(0.6, 0.7, 0.8)
+tc &lt;- c(0.6, 0.7, 0.8)
+pg &lt;- c(0.5, 0.6, 0.7)</code></pre>
+<pre class="r"><code># run the loop in parallel
+n.cores &lt;- parallel::detectCores() - 2 #save one core for other work
+# create the cluster
+my.cluster &lt;- parallel::makeCluster(n.cores, type = &quot;PSOCK&quot;)
+# register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
 
-library(purrr)
-library(future)
-library(furrr)
 
-load(&quot;./data/processed/20220708polling_df&quot;)
+set.seed(83823)
 
-js_df &lt;- x
+# make sure to define the correct folder beforehand
+dataworlds &lt;-
+  foreach(Nsim = N, i = icount()) %:% foreach(cnsim = cn, j = icount()) %:% foreach(hsim = h,
+                                                                                    k = icount()) %:% foreach(tcsim = tc, l = icount()) %:% foreach(
+                                                                                      pgsim = pg,
+                                                                                      m = icount(),
+                                                                                      .packages = packages,
+                                                                                      .inorder = TRUE
+                                                                                    ) %dopar% {
+                                                                                      world &lt;-
+                                                                                        iniworld(
+                                                                                          N = Nsim,
+                                                                                          cn = cnsim,
+                                                                                          h = hsim,
+                                                                                          tc = tcsim,
+                                                                                          pg = pgsim,
+                                                                                          plotworld = FALSE,
+                                                                                          seed = NULL
+                                                                                        )
+                                                                                      save(
+                                                                                        world,
+                                                                                        file = paste(
+                                                                                          &quot;./data/processed/worlds/worldN&quot;,
+                                                                                          Nsim,
+                                                                                          &quot;cn&quot;,
+                                                                                          cnsim,
+                                                                                          &quot;h&quot;,
+                                                                                          hsim,
+                                                                                          &quot;tc&quot;,
+                                                                                          tcsim,
+                                                                                          &quot;pg&quot;,
+                                                                                          pgsim,
+                                                                                          &quot;rda&quot;,
+                                                                                          sep = &quot;&quot;
+                                                                                        ),
+                                                                                        compress = &quot;bzip2&quot;
+                                                                                      )
+                                                                                      # return(test)
+                                                                                    }</code></pre>
+</div>
+<div id="generated-world-spatial-measures" class="section level2">
+<h2>Generated world spatial measures</h2>
+<pre class="r"><code>load(paste(&quot;./data/processed/worlds/worldN&quot;, N[3], &quot;cn&quot;, cn[3], &quot;h&quot;, h[3], &quot;tc&quot;, tc[3], &quot;pg&quot;, pg[2],
+           &quot;rda&quot;, sep = &quot;&quot;))
+
+
+geodistances &lt;- world$matdist
+# we set distance to yourself to 0, be aware that in the weight matrix we may or may not want to
+# set weight to yourself as 1.
+diag(geodistances) &lt;- 0
+# retrieve the group membership
+mydf &lt;- as.data.frame(cbind(as.numeric(world$groups == 1), as.numeric(world$groups == -1)))
+# define the coordinates
+mycoordinates &lt;- world$matlonglat
+
+s &lt;- 1
+geodistances &lt;- world$matdist
+diag(geodistances) &lt;- 0
+mygeodistances &lt;- as.dist(geodistances)  #the class of the distance matrix should be dist.              
+
+# explain!
+myenv &lt;- seg::localenv(x = mycoordinates, data = mydf, power = s, useExp = TRUE, scale = FALSE, maxdist = pi,
+                       sprel = mygeodistances, tol = .Machine$double.eps)
+
+segs &lt;- spatseg(env = myenv, method = &quot;all&quot;, useC = TRUE, negative.rm = FALSE, tol = .Machine$double.eps)
+print(&quot;spatial dissimilarity&quot;)</code></pre>
+<pre><code>## [1] &quot;spatial dissimilarity&quot;</code></pre>
+<pre class="r"><code>segs@d  #spatial dissimilarity</code></pre>
+<pre><code>## [1] 0.1099368</code></pre>
+<pre class="r"><code>print(&quot;spatial relative diversity&quot;)</code></pre>
+<pre><code>## [1] &quot;spatial relative diversity&quot;</code></pre>
+<pre class="r"><code>segs@r  #spatial relative diversity</code></pre>
+<pre><code>## [1] 0.01579754</code></pre>
+<pre class="r"><code>print(&quot;spatial information theory&quot;)</code></pre>
+<pre><code>## [1] &quot;spatial information theory&quot;</code></pre>
+<pre class="r"><code>segs@h  #spatial information theory</code></pre>
+<pre><code>## [1] 0.01146017</code></pre>
+<pre class="r"><code>print(&quot;Spatial Isolation group 1&quot;)</code></pre>
+<pre><code>## [1] &quot;Spatial Isolation group 1&quot;</code></pre>
+<pre class="r"><code>segs@p[1, 1]  #spatial exposure/isolation</code></pre>
+<pre><code>## [1] 0.5350287</code></pre>
+<pre class="r"><code>print(&quot;Spatial Exposure group 1 to 2&quot;)</code></pre>
+<pre><code>## [1] &quot;Spatial Exposure group 1 to 2&quot;</code></pre>
+<pre class="r"><code>segs@p[1, 2]</code></pre>
+<pre><code>## [1] 0.4649713</code></pre>
+<pre class="r"><code>print(&quot;Spatial Exposure group 2 to 1&quot;)</code></pre>
+<pre><code>## [1] &quot;Spatial Exposure group 2 to 1&quot;</code></pre>
+<pre class="r"><code>segs@p[2, 1]</code></pre>
+<pre><code>## [1] 0.4830468</code></pre>
+<pre class="r"><code>print(&quot;Spatial Isolation group 2&quot;)</code></pre>
+<pre><code>## [1] &quot;Spatial Isolation group 2&quot;</code></pre>
+<pre class="r"><code>segs@p[2, 2]</code></pre>
+<pre><code>## [1] 0.5169532</code></pre>
+<pre class="r"><code># spatial proximity
+sp &lt;- isp(x = mycoordinates, data = mydf, nb = geodistances, fun = function(x) {
+  exp(-x * 1)
+})
+print(&quot;Spatial proximity&quot;)</code></pre>
+<pre><code>## [1] &quot;Spatial proximity&quot;</code></pre>
+<pre class="r"><code>Eo &lt;- mean(c(myenv@env[, 2][myenv@data[, 1] == 1], myenv@env[, 1][myenv@data[, 2] == 1]))
+Eo</code></pre>
+<pre><code>## [1] 0.4737931</code></pre>
+<pre class="r"><code>weights &lt;- exp(-geodistances * s)
+diag(weights) &lt;- 0  #for Moran we do not want own location, because we are dealing with point data. 
+
+# let us interpret the group membership as an attribute of the point.
+MIg &lt;- fMoranI(world$groups, scaled = FALSE, weight = weights, na.rm = TRUE)
+MIg$observed</code></pre>
+<pre><code>## [1] 0.03964424</code></pre>
+<pre class="r"><code># let us use count of group membership 1.
+MIc1 &lt;- fMoranI(myenv@data[, 1], scaled = FALSE, weight = weights, na.rm = TRUE)
+MIc1$observed</code></pre>
+<pre><code>## [1] 0.03964424</code></pre>
+<pre class="r"><code># let us use count of group membership 2.
+MIc2 &lt;- fMoranI(myenv@data[, 2], scaled = FALSE, weight = weights, na.rm = TRUE)
+MIc2$observed</code></pre>
+<pre><code>## [1] 0.03964424</code></pre>
+<pre class="r"><code>geodistances &lt;- world$matdist
+diag(geodistances) &lt;- Inf
+SP(x = mydf, d = geodistances, fdist = &quot;e&quot;, beta = s)</code></pre>
+<pre><code>## [1] 1.0398</code></pre>
+<pre class="r"><code>geodistances &lt;- world$matdist
+DPxy(x = mydf, d = geodistances, beta = s)</code></pre>
+<pre><code>##       [,1]  [,2]
+## [1,] 0.535 0.465
+## [2,] 0.483 0.517</code></pre>
+<pre class="r"><code># calculate different segregation indices for each world
+
+N = c(100, 200, 300)
+cn = c(4, 8, 16)
+h = c(0.6, 0.7, 0.8)
+tc = c(0.6, 0.7, 0.8)
+pg = c(0.5, 0.6, 0.7)
+s = c(1, 2, 4)
+
+# run the loop in parallel
+n.cores &lt;- parallel::detectCores() - 1
+my.cluster &lt;- parallel::makeCluster(n.cores, type = &quot;PSOCK&quot;)
+doParallel::registerDoParallel(cl = my.cluster)
+
+# something goes wrong with N=100 h[5], pg[5] #yes all groups are same color , thus option
+# .errorhandling = remove
+dataworldsN1 &lt;- foreach(Nsim = N, i = icount(), .combine = &quot;rbind&quot;) %:% foreach(cnsim = cn, j = icount(),
+                                                                                .combine = &quot;rbind&quot;) %:% foreach(hsim = h, k = icount(), .combine = &quot;rbind&quot;) %:% foreach(tcsim = tc,
+                                                                                                                                                                        l = icount(), .combine = &quot;rbind&quot;) %:% foreach(pgsim = pg, m = icount(), .combine = &quot;rbind&quot;) %:% foreach(ssim = s,
+                                                                                                                                                                                                                                                                                .packages = packages, n = icount(), .combine = &quot;rbind&quot;, .inorder = FALSE, .errorhandling = &quot;remove&quot;) %dopar%
+  {
+    
+    load(paste(&quot;./data/processed/worlds/worldN&quot;, Nsim, &quot;cn&quot;, cnsim, &quot;h&quot;, hsim, &quot;tc&quot;, tcsim, &quot;pg&quot;,
+               pgsim, &quot;rda&quot;, sep = &quot;&quot;))
+    
+    geodistances &lt;- world$matdist
+    diag(geodistances) &lt;- 0
+    mydf &lt;- as.data.frame(cbind(as.numeric(world$groups == 1), as.numeric(world$groups == -1)))
+    mycoordinates &lt;- world$matlonglat
+    geodistances &lt;- world$matdist
+    diag(geodistances) &lt;- 0
+    mygeodistances &lt;- as.dist(geodistances)  #the class of the distance matrix should be dist.              
+    
+    myenv &lt;- seg::localenv(x = mycoordinates, data = mydf, power = ssim, useExp = TRUE, scale = FALSE,
+                           maxdist = pi, sprel = mygeodistances, tol = .Machine$double.eps)
+    
+    # PACKAGE SEG
+    segs &lt;- spatseg(env = myenv, method = &quot;all&quot;, useC = TRUE, negative.rm = FALSE, tol = .Machine$double.eps)
+    D &lt;- segs@d
+    R &lt;- segs@r
+    H &lt;- segs@h
+    P_11 &lt;- segs@p[1, 1]
+    P_12 &lt;- segs@p[1, 2]
+    P_21 &lt;- segs@p[2, 1]
+    P_22 &lt;- segs@p[2, 2]
+    
+    # Moran&#39;s I
+    weights &lt;- exp(-geodistances * ssim)
+    diag(weights) &lt;- 0  #for Moran we do not want own location. 
+    MI &lt;- fMoranI(world$groups, scaled = FALSE, weight = weights, na.rm = TRUE)$observed
+    
+    # mean local exposure to outgroup ###not a segregation measure but useful in ABM###
+    Eo &lt;- mean(c(myenv@env[, 2][myenv@data[, 1] == 1], myenv@env[, 1][myenv@data[, 2] == 1]))
+    
+    # whites spatial proximity index
+    SP &lt;- SP(x = mydf, d = geodistances, fdist = &quot;e&quot;, beta = ssim)
+    
+    id &lt;- i * 10000 + j * 1000 + k * 100 + l * 10 + m
+    
+    # SAVE IN DATAFRAME
+    data.frame(id = id, s = ssim, N = Nsim, cn = cnsim, h = hsim, tc = tcsim, pg = pgsim, seed = world$seed,
+               MI = MI, D = D, R = R, H = H, P_11 = P_11, P_12 = P_12, P_21 = P_21, P_22 = P_22, Eo = Eo,
+               SP = SP, i = i, j = j, k = k, l = l, m = m, n = n)
+    
+  }
+
+fsave(dataworldsN1, &quot;SegWorlds&quot;)</code></pre>
+<pre class="r"><code>load(&quot;./data/processed/20220712SegWorlds&quot;)
+worlds &lt;- x
 rm(x)
 
-positions_df &lt;- read_csv2(&quot;./data/kieskompas_positie_partijen.csv&quot;)  #change to your own file!!</code></pre>
-<pre><code>## ℹ Using &quot;&#39;,&#39;&quot; as decimal and &quot;&#39;.&#39;&quot; as grouping mark. Use `read_delim()` for more control.</code></pre>
-<pre><code>## Rows: 17 Columns: 5
-## ── Column specification ────────────────────────────────────────────────────────────────────────────
-## Delimiter: &quot;;&quot;
-## chr (1): partij
-## dbl (4): links (-x), progressief (y), x, y
-## 
-## ℹ Use `spec()` to retrieve the full column specification for this data.
-## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
-<pre class="r"><code>js_df &lt;- ungroup(js_df)
+require(tidyverse)
 
-js_df$Pvar &lt;- rep(NA, nrow(js_df))
-js_df$PER &lt;- rep(NA, nrow(js_df))
-js_df$PV &lt;- rep(NA, nrow(js_df))
+worlds %&gt;%
+  filter(N == 300) %&gt;%
+  arrange(desc(H)) -&gt; worldssel
 
-# I will use dimensions as above, but you will need to tweak of course.
-positions &lt;- (cbind(positions_df$x, positions_df$y) + 2)/4  #to range 0-1
+load(paste(&quot;./data/processed/worlds/worldN&quot;, worldssel$N[1], &quot;cn&quot;, worldssel$cn[1], &quot;h&quot;, worldssel$h[1],
+           &quot;tc&quot;, worldssel$tc[1], &quot;pg&quot;, worldssel$pg[1], &quot;rda&quot;, sep = &quot;&quot;))
 
+world1 &lt;- world
 
-parties &lt;- c(&quot;BIJ1&quot;, &quot;PvdD&quot;, &quot;GL&quot;, &quot;SP&quot;, &quot;PvdA&quot;, &quot;DENK&quot;, &quot;Volt&quot;, &quot;D66&quot;, &quot;CU&quot;, &quot;PLUS50&quot;,
-             &quot;PVV&quot;, &quot;CDA&quot;, &quot;BBB&quot;, &quot;SGP&quot;, &quot;VVD&quot;, &quot;JA21&quot;, &quot;FvD&quot;)
-
-parties</code></pre>
-<pre><code>##  [1] &quot;BIJ1&quot;   &quot;PvdD&quot;   &quot;GL&quot;     &quot;SP&quot;     &quot;PvdA&quot;   &quot;DENK&quot;   &quot;Volt&quot;   &quot;D66&quot;    &quot;CU&quot;     &quot;PLUS50&quot;
-## [11] &quot;PVV&quot;    &quot;CDA&quot;    &quot;BBB&quot;    &quot;SGP&quot;    &quot;VVD&quot;    &quot;JA21&quot;   &quot;FvD&quot;</code></pre>
-<pre class="r"><code>#DOIT
-
-library(rbenchmark)
-
-benchmark(&quot;standard&quot; = {
-  for (i in 1:nrow(js_df)) {
-    votes &lt;- c(js_df$BIJ1[i], js_df$PvdD[i], js_df$GL[i], js_df$SP[i], js_df$PvdA[i], js_df$DENK[i],
-               js_df$Volt[i], js_df$D66[i], js_df$CU[i], js_df$PLUS50[i], js_df$PVV[i], js_df$CDA[i], js_df$BBB[i],
-               js_df$SGP[i], js_df$VVD[i], js_df$JA21[i], js_df$FvD[i])
-    js_df$Pvar[i] &lt;- fPvar(votes = votes, positions = positions)
-    js_df$PER[i] &lt;- fPER(votes = votes, positions = positions)
-    js_df$PV[i] &lt;- fPV(votes = votes, positions = positions)
-  }
-},
-  &quot;rowwise&quot; = {
-  js_df %&gt;% 
-    rowwise() %&gt;% 
-    mutate(Pvar = fPvar(votes = c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD), positions = positions)) %&gt;% 
-    mutate(PER = fPER(votes = c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD), positions = positions)) %&gt;% 
-    mutate(PV = fPV(votes = c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD), positions = positions)) %&gt;% 
-    select(Pvar, PER, PV)
-},
-&quot;rowwise_c_across&quot; = {
-  js_df %&gt;% 
-    select(Adres, all_of(parties)) %&gt;% 
-    rowwise() %&gt;% 
-    mutate(Pvar = list(fPvar(votes = c_across(BIJ1:FvD),positions = !!positions))) %&gt;% 
-    mutate(PER = list(fPER(votes = c_across(BIJ1:FvD),positions = !!positions))) %&gt;% 
-    mutate(PV = list(fPV(votes = c_across(BIJ1:FvD),positions = !!positions))) %&gt;% 
-    unnest(c(Pvar, PER, PV)) %&gt;% 
-    select(Pvar, PER, PV)
-},
-&quot;nested_and_map&quot; = {
-  js_df %&gt;% 
-    mutate(id = row_number()) %&gt;% 
-    group_by(id) %&gt;% 
-    summarise(parties_result = list(c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD))) %&gt;% 
-    mutate(Pvar = map_dbl(parties_result, function(x) fPvar(votes = x, positions = !!positions))) %&gt;% 
-    mutate(PER = map_dbl(parties_result, function(x) fPER(votes = x, positions = !!positions))) %&gt;% 
-    mutate(PV = map_dbl(parties_result, function(x) fPV(votes = x, positions = !!positions))) %&gt;% 
-    select(Pvar, PER, PV)
-},
-&quot;nested_and_furrr&quot; = {
-  plan(multisession, workers = availableCores() - 1)
+{
+  plot3d(world1$coordinatesxyz, col = world1$color, box = FALSE, axes = FALSE, xlab = &quot;&quot;, ylab = &quot;&quot;,
+         zlab = &quot;&quot;, size = 4, xlim = c(-1, 1), ylim = c(-1, 1), zlim = c(-1, 1))
+  rgl.spheres(0, 0, 0, radius = 0.99, color = &quot;grey&quot;)
   
-  js_df %&gt;% 
-    mutate(id = row_number()) %&gt;% 
-    group_by(id) %&gt;% 
-    summarise(parties_result = list(c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD))) %&gt;% 
-    mutate(Pvar = future_map_dbl(parties_result, function(x) fPvar(votes = x, positions = !!positions))) %&gt;% 
-    mutate(PER = future_map_dbl(parties_result, function(x) fPER(votes = x, positions = !!positions))) %&gt;% 
-    mutate(PV = future_map_dbl(parties_result, function(x) fPV(votes = x, positions = !!positions))) %&gt;% 
-    select(Pvar, PER, PV)
-},
-replications = 3,
-columns = c(&quot;test&quot;, &quot;elapsed&quot;))</code></pre>
-<pre><code>##               test elapsed
-## 5 nested_and_furrr   7.774
-## 4   nested_and_map   1.873
-## 2          rowwise   2.211
-## 3 rowwise_c_across  19.177
-## 1         standard   3.813</code></pre>
+  rglwidget()
+}</code></pre>
+<div id="rgl33883" style="width:672px;height:480px;" class="rglWebGL html-widget"></div>
+<script type="application/json" data-for="rgl33883">{"x":{"material":{"color":"#BEBEBE","alpha":1,"lit":true,"ambient":"#000000","specular":"#FFFFFF","emission":"#000000","shininess":50,"smooth":true,"front":"filled","back":"filled","size":3,"lwd":1,"fog":true,"point_antialias":false,"line_antialias":false,"texture":null,"textype":"rgb","texmipmap":false,"texminfilter":"linear","texmagfilter":"linear","texenvmap":false,"depth_mask":true,"depth_test":"less","isTransparent":false,"polygon_offset":[0,0],"margin":"","floating":false,"tag":""},"rootSubscene":7,"objects":{"14":{"id":14,"type":"clipplanes","offsets":[[1],[1],[1],[1],[1],[1]],"normals":"0","flags":512},"15":{"id":15,"type":"points","material":{"lit":false,"size":4},"vertices":"1","colors":"2","centers":"3","ignoreExtent":false,"flags":34816},"16":{"id":16,"type":"lines","material":{"lit":false},"vertices":"4","colors":"5","centers":"6","ignoreExtent":false,"flags":32832},"18":{"id":18,"type":"text","material":{"lit":false,"margin":0,"floating":true,"edge":[0,1,1]},"vertices":"7","colors":"8","texts":[[""]],"cex":[[1]],"adj":[[0.5,0.5,0.5]],"centers":"9","family":[["sans"]],"font":[[1]],"ignoreExtent":true,"flags":33808},"19":{"id":19,"type":"text","material":{"lit":false,"margin":1,"floating":true,"edge":[1,1,1]},"vertices":"10","colors":"11","texts":[[""]],"cex":[[1]],"adj":[[0.5,0.5,0.5]],"centers":"12","family":[["sans"]],"font":[[1]],"ignoreExtent":true,"flags":33808},"20":{"id":20,"type":"text","material":{"lit":false,"margin":2,"floating":true,"edge":[1,1,1]},"vertices":"13","colors":"14","texts":[[""]],"cex":[[1]],"adj":[[0.5,0.5,0.5]],"centers":"15","family":[["sans"]],"font":[[1]],"ignoreExtent":true,"flags":33808},"21":{"id":21,"type":"spheres","material":{},"vertices":"16","colors":"17","radii":[[0.990000009536743]],"centers":"18","ignoreExtent":false,"fastTransparency":true,"flags":32771},"11":{"id":11,"type":"light","vertices":[[0,0,1]],"colors":[[1,1,1,1],[1,1,1,1],[1,1,1,1]],"viewpoint":true,"finite":false},"10":{"id":10,"type":"background","material":{},"colors":"19","centers":"20","sphere":false,"fogtype":"none","fogscale":1,"flags":32768},"12":{"id":12,"type":"background","material":{"lit":false,"back":"lines"},"colors":"21","centers":"22","sphere":false,"fogtype":"none","fogscale":1,"flags":32768},"17":{"id":17,"type":"bboxdeco","material":{"front":"culled","back":"culled"},"colors":"23","axes":{"mode":["none","none","none"],"step":[-1,-1,-1],"nticks":[0,0,0],"marklen":[15,15,15],"expand":[1.02999997138977,1.02999997138977,1.02999997138977]},"draw_front":false,"flags":32769},"13":{"id":13,"type":"subscene","par3d":{"antialias":4,"FOV":30,"ignoreExtent":false,"listeners":7,"mouseMode":{"none":"none","left":"trackball","right":"zoom","middle":"fov","wheel":"pull"},"observer":[0,0,8.47669792175293],"modelMatrix":[[1,0,0,0],[0,0.342020153999329,0.939692616462708,0],[0,-0.939692616462708,0.342020153999329,-8.47669792175293],[0,0,0,1]],"projMatrix":[[3.73205089569092,0,0,0],[0,3.73205089569092,0,0],[0,0,-3.86370277404785,-30.5575160980225],[0,0,-1,0]],"skipRedraw":false,"userMatrix":[[1,0,0,0],[0,0.342020143325668,0.939692620785909,0],[0,-0.939692620785909,0.342020143325668,0],[0,0,0,1]],"userProjection":[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],"scale":[1,1,1],"viewport":{"x":0,"y":0,"width":1,"height":1},"zoom":1,"bbox":[-0.996864676475525,0.997773766517639,-0.997587144374847,0.998831510543823,-0.997605919837952,0.900800585746765],"windowRect":[0,45,256,301],"family":"sans","font":1,"cex":1,"useFreeType":true,"fontname":"/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/rgl/fonts/FreeSans.ttf","maxClipPlanes":6,"glVersion":2.1,"activeSubscene":0},"embeddings":{"viewport":"inherit","projection":"inherit","model":"inherit","mouse":"inherit"},"objects":[14,15,11],"parent":7,"subscenes":[],"flags":35584},"7":{"id":7,"type":"subscene","par3d":{"antialias":4,"FOV":30,"ignoreExtent":false,"listeners":7,"mouseMode":{"none":"none","left":"trackball","right":"zoom","middle":"fov","wheel":"pull"},"observer":[0,0,8.47669792175293],"modelMatrix":[[1,0,0,0],[0,0.342020153999329,0.939692616462708,0],[0,-0.939692616462708,0.342020153999329,-8.47669792175293],[0,0,0,1]],"projMatrix":[[3.73205089569092,0,0,0],[0,3.73205089569092,0,0],[0,0,-3.86370277404785,-30.5575160980225],[0,0,-1,0]],"skipRedraw":false,"userMatrix":[[1,0,0,0],[0,0.342020143325668,0.939692620785909,0],[0,-0.939692620785909,0.342020143325668,0],[0,0,0,1]],"userProjection":[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],"scale":[1,1,1],"viewport":{"x":0,"y":0,"width":1,"height":1},"zoom":1,"bbox":[-1,1,-1,1,-1,1],"windowRect":[0,45,256,301],"family":"sans","font":1,"cex":1,"useFreeType":true,"fontname":"/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/rgl/fonts/FreeSans.ttf","maxClipPlanes":6,"glVersion":2.1,"activeSubscene":0},"embeddings":{"viewport":"replace","projection":"replace","model":"replace","mouse":"replace"},"objects":[12,17,16,18,19,20,21,11,13],"subscenes":13,"flags":36691}},"crosstalk":{"key":[],"group":[],"id":[],"options":[]},"width":672,"height":480,"buffer":{"accessors":[{"bufferView":0,"componentType":5120,"count":6,"type":"VEC3"},{"bufferView":1,"componentType":5126,"count":295,"type":"VEC3"},{"bufferView":2,"componentType":5121,"count":295,"type":"VEC4","normalized":true},{"bufferView":3,"componentType":5126,"count":295,"type":"VEC3"},{"bufferView":4,"componentType":5120,"count":4,"type":"VEC3"},{"bufferView":5,"componentType":5121,"count":1,"type":"VEC4"},{"bufferView":6,"componentType":5120,"count":2,"type":"VEC3"},{"bufferView":7,"componentType":5126,"count":1,"type":"VEC3"},{"bufferView":8,"componentType":5121,"count":1,"type":"VEC4"},{"bufferView":9,"componentType":5126,"count":1,"type":"VEC3"},{"bufferView":10,"componentType":5126,"count":1,"type":"VEC3"},{"bufferView":11,"componentType":5121,"count":1,"type":"VEC4"},{"bufferView":12,"componentType":5126,"count":1,"type":"VEC3"},{"bufferView":13,"componentType":5126,"count":1,"type":"VEC3"},{"bufferView":14,"componentType":5121,"count":1,"type":"VEC4"},{"bufferView":15,"componentType":5126,"count":1,"type":"VEC3"},{"bufferView":16,"componentType":5121,"count":1,"type":"VEC3"},{"bufferView":17,"componentType":5126,"count":1,"type":"VEC4"},{"bufferView":18,"componentType":5121,"count":1,"type":"VEC3"},{"bufferView":19,"componentType":5126,"count":1,"type":"VEC4"},{"bufferView":20,"componentType":5121,"count":1,"type":"VEC3"},{"bufferView":21,"componentType":5121,"count":1,"type":"VEC4"},{"bufferView":22,"componentType":5121,"count":1,"type":"VEC3"},{"bufferView":23,"componentType":5121,"count":1,"type":"VEC4"}],"bufferViews":[{"buffer":0,"byteLength":18,"byteOffset":0},{"buffer":0,"byteLength":3540,"byteOffset":20},{"buffer":0,"byteLength":1180,"byteOffset":3560},{"buffer":0,"byteLength":3540,"byteOffset":4740},{"buffer":0,"byteLength":12,"byteOffset":8280},{"buffer":0,"byteLength":4,"byteOffset":8292},{"buffer":0,"byteLength":6,"byteOffset":8296},{"buffer":0,"byteLength":12,"byteOffset":8304},{"buffer":0,"byteLength":4,"byteOffset":8316},{"buffer":0,"byteLength":12,"byteOffset":8320},{"buffer":0,"byteLength":12,"byteOffset":8332},{"buffer":0,"byteLength":4,"byteOffset":8344},{"buffer":0,"byteLength":12,"byteOffset":8348},{"buffer":0,"byteLength":12,"byteOffset":8360},{"buffer":0,"byteLength":4,"byteOffset":8372},{"buffer":0,"byteLength":12,"byteOffset":8376},{"buffer":0,"byteLength":3,"byteOffset":8388},{"buffer":0,"byteLength":16,"byteOffset":8392},{"buffer":0,"byteLength":3,"byteOffset":8408},{"buffer":0,"byteLength":16,"byteOffset":8412},{"buffer":0,"byteLength":3,"byteOffset":8428},{"buffer":0,"byteLength":4,"byteOffset":8431},{"buffer":0,"byteLength":3,"byteOffset":8435},{"buffer":0,"byteLength":4,"byteOffset":8438}],"buffers":[{"byteLength":8442,"bytes":"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\n/wAA/wAA////AAD//wAA/wAA////AAD//wAA//8AAP8AAP///wAA//8AAP//AAD//wAA//8A\nAP//AAD//wAA//8AAP//AAD/AAD///8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD/\n/wAA//8AAP//AAD//wAA/wAA//8AAP///wAA/wAA////AAD//wAA//8AAP8AAP///wAA//8A\nAP//AAD//wAA//8AAP//AAD/AAD///8AAP//AAD//wAA//8AAP8AAP///wAA/wAA////AAD/\n/wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP8AAP///wAA//8AAP//AAD/AAD///8A\nAP//AAD/AAD///8AAP//AAD//wAA//8AAP//AAD/AAD//wAA//8AAP//AAD//wAA//8AAP//\nAAD//wAA//8AAP//AAD///8AAP8AAP///wAA//8AAP//AAD//wAA//8AAP8AAP//AAD//wAA\n//8AAP//AAD//wAA//8AAP///wAA/wAA//8AAP///wAA//8AAP8AAP///wAA/wAA//8AAP//\nAAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA\n//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//\nAAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA\n//8AAP//AAD///8AAP//AAD//wAA/wAA//8AAP///wAA/wAA//8AAP//AAD//wAA//8AAP//\nAAD///8AAP8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA\n//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD///8AAP8AAP//\nAAD//wAA//8AAP//AAD//wAA////AAD/AAD//wAA//8AAP///wAA/wAA//8AAP//AAD//wAA\n//8AAP//AAD//wAA////AAD/AAD//wAA//8AAP//AAD//wAA//8AAP///wAA/wAA//8AAP//\nAAD///8AAP//AAD//wAA/wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA\n//8AAP//AAD//wAA//8AAP//AAD//wAA////AAD/AAD//wAA//8AAP//AAD//wAA//8AAP//\nAAD//wAA////AAD/AAD///8AAP8AAP//AAD//wAA//8AAP///wAA/wAA//8AAP//AAD///8A\nAP//AAD/AAD//wAA//8AAP//AAD//wAA////AAD/AAD//wAA//8AAP//v/EivxO1zz5h7Sc/\nzDtVv8igDT+/RD+8V/9wvxwHpr6dJb49g8A6v4BALr9CoIk9x9BPvx4Ukb5htwK/sikkv5Tf\nkb5RZDY/m/d7v+HTGr0/2zC++v15v6tXW77j2Lc8mX4fv5W3H7+lj/E+8B6nvrRZcD/+MOC9\nKtA1v2aTLL/GwE8+Sj54vwSNRb7teBm++QFQv2rZmD4JLAC/585OvwJE574f3ME+OZRYvy7U\nAj+Nmxs+7kppv0PNhz63PqG+pi18v0IxFL5q6749nfJbv8C79r6bKjC+xRYxv12Tvj6Wah4/\nywZ3v93G1r11Wna+uLUIvxY9TL9DSo8+xNMev8UyQb8bhFq+vVgOv42MVL9QDB29XG5uvxn+\nSL0BtLi+Mv+hvpR5/T57J08/lfYuvy1pxr6cXx4/PWtnvxXG2j4BaH68UABzvyluPD4cpoK+\n7fN4vypbSb6DBwA+NWhAvx1UGD+wwpG+p3Akv6EyRD9H27A7m/onv8Y56T7CAxq/1cJpv7j4\nxz7BR+89g9E9v3P0Kj8cuYU9T4vmvslN7T1npWI/42h1vuwb8z5WyVg/ClJwvyJPrj66TVo9\nqf1Mv3DKxr5lium+i3Dtvlvo2r4spkY/T7tvv/YeGT4HeaI+N3ZEv1aaHr/j8Sg+QzVQv2u5\nLL4RjQ4/tCtDvzh/Gr8FK28+clF1v24Oyz0YRYk+CfETv7tVl73kEFA/Cp04v/t3pj6Jmxw/\nNeRQv9ehDz+pjg4+2+VdvtVH5D5zVF4/glrLvkhlNL9AhBY/jMUjv7CTML8ina0+kIBsvzjI\nwr6alC09gnWivvGSvT6KgF8/SRtbvzpY/T5rAho+/DJjvwAFkb4sG7o+r8X+vqBdWj8vQSG+\np6sGvxm6Oz/ah9y+X16KvqmbXz++Ws8+pXXGvphjSj8QuPI+/BZOv8Oj8r5Hsra+nOdgv7NF\nwD7XJpe+diNVvz12c73a+wy/Txcbv0JoRb9Zhkg+jeY/vw5Nsz7qxw8/o3Zwv1asML6C0pc+\n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\nAACAPwAAAAEBAQEAAAAAAAAB"}]},"context":{"shiny":false,"rmarkdown":"html_document"},"vertexShader":"#line 2 1\n// File 1 is the vertex shader\n#ifdef GL_ES\n#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n#endif\n\nattribute vec3 aPos;\nattribute vec4 aCol;\nuniform mat4 mvMatrix;\nuniform mat4 prMatrix;\nvarying vec4 vCol;\nvarying vec4 vPosition;\n\n#ifdef NEEDS_VNORMAL\nattribute vec3 aNorm;\nuniform mat4 normMatrix;\nvarying vec4 vNormal;\n#endif\n\n#if defined(HAS_TEXTURE) || defined (IS_TEXT)\nattribute vec2 aTexcoord;\nvarying vec2 vTexcoord;\n#endif\n\n#ifdef FIXED_SIZE\nuniform vec3 textScale;\n#endif\n\n#ifdef FIXED_QUADS\nattribute vec3 aOfs;\n#endif\n\n#ifdef IS_TWOSIDED\n#ifdef HAS_NORMALS\nvarying float normz;\nuniform mat4 invPrMatrix;\n#else\nattribute vec3 aPos1;\nattribute vec3 aPos2;\nvarying float normz;\n#endif\n#endif // IS_TWOSIDED\n\n#ifdef FAT_LINES\nattribute vec3 aNext;\nattribute vec2 aPoint;\nvarying vec2 vPoint;\nvarying float vLength;\nuniform float uAspect;\nuniform float uLwd;\n#endif\n\n\nvoid main(void) {\n  \n#ifndef IS_BRUSH\n#if defined(NCLIPPLANES) || !defined(FIXED_QUADS) || defined(HAS_FOG)\n  vPosition = mvMatrix * vec4(aPos, 1.);\n#endif\n  \n#ifndef FIXED_QUADS\n  gl_Position = prMatrix * vPosition;\n#endif\n#endif // !IS_BRUSH\n  \n#ifdef IS_POINTS\n  gl_PointSize = POINTSIZE;\n#endif\n  \n  vCol = aCol;\n  \n#ifdef NEEDS_VNORMAL\n  vNormal = normMatrix * vec4(-aNorm, dot(aNorm, aPos));\n#endif\n  \n#ifdef IS_TWOSIDED\n#ifdef HAS_NORMALS\n  /* normz should be calculated *after* projection */\n  normz = (invPrMatrix*vNormal).z;\n#else\n  vec4 pos1 = prMatrix*(mvMatrix*vec4(aPos1, 1.));\n  pos1 = pos1/pos1.w - gl_Position/gl_Position.w;\n  vec4 pos2 = prMatrix*(mvMatrix*vec4(aPos2, 1.));\n  pos2 = pos2/pos2.w - gl_Position/gl_Position.w;\n  normz = pos1.x*pos2.y - pos1.y*pos2.x;\n#endif\n#endif // IS_TWOSIDED\n  \n#ifdef NEEDS_VNORMAL\n  vNormal = vec4(normalize(vNormal.xyz/vNormal.w), 1);\n#endif\n  \n#if defined(HAS_TEXTURE) || defined(IS_TEXT)\n  vTexcoord = aTexcoord;\n#endif\n  \n#if defined(FIXED_SIZE) && !defined(ROTATING)\n  vec4 pos = prMatrix * mvMatrix * vec4(aPos, 1.);\n  pos = pos/pos.w;\n  gl_Position = pos + vec4(aOfs*textScale, 0.);\n#endif\n  \n#if defined(IS_SPRITES) && !defined(FIXED_SIZE)\n  vec4 pos = mvMatrix * vec4(aPos, 1.);\n  pos = pos/pos.w + vec4(aOfs,  0.);\n  gl_Position = prMatrix*pos;\n#endif\n  \n#ifdef FAT_LINES\n  /* This code was inspired by Matt Deslauriers' code in \n   https://mattdesl.svbtle.com/drawing-lines-is-hard */\n  vec2 aspectVec = vec2(uAspect, 1.0);\n  mat4 projViewModel = prMatrix * mvMatrix;\n  vec4 currentProjected = projViewModel * vec4(aPos, 1.0);\n  currentProjected = currentProjected/currentProjected.w;\n  vec4 nextProjected = projViewModel * vec4(aNext, 1.0);\n  vec2 currentScreen = currentProjected.xy * aspectVec;\n  vec2 nextScreen = (nextProjected.xy / nextProjected.w) * aspectVec;\n  float len = uLwd;\n  vec2 dir = vec2(1.0, 0.0);\n  vPoint = aPoint;\n  vLength = length(nextScreen - currentScreen)/2.0;\n  vLength = vLength/(vLength + len);\n  if (vLength > 0.0) {\n    dir = normalize(nextScreen - currentScreen);\n  }\n  vec2 normal = vec2(-dir.y, dir.x);\n  dir.x /= uAspect;\n  normal.x /= uAspect;\n  vec4 offset = vec4(len*(normal*aPoint.x*aPoint.y - dir), 0.0, 0.0);\n  gl_Position = currentProjected + offset;\n#endif\n  \n#ifdef IS_BRUSH\n  gl_Position = vec4(aPos, 1.);\n#endif\n}","fragmentShader":"#line 2 2\n// File 2 is the fragment shader\n#ifdef GL_ES\n#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n#endif\nvarying vec4 vCol; // carries alpha\nvarying vec4 vPosition;\n#if defined(HAS_TEXTURE) || defined (IS_TEXT)\nvarying vec2 vTexcoord;\nuniform sampler2D uSampler;\n#endif\n\n#ifdef HAS_FOG\nuniform int uFogMode;\nuniform vec3 uFogColor;\nuniform vec4 uFogParms;\n#endif\n\n#if defined(IS_LIT) && !defined(FIXED_QUADS)\nvarying vec4 vNormal;\n#endif\n\n#if NCLIPPLANES > 0\nuniform vec4 vClipplane[NCLIPPLANES];\n#endif\n\n#if NLIGHTS > 0\nuniform mat4 mvMatrix;\n#endif\n\n#ifdef IS_LIT\nuniform vec3 emission;\nuniform float shininess;\n#if NLIGHTS > 0\nuniform vec3 ambient[NLIGHTS];\nuniform vec3 specular[NLIGHTS]; // light*material\nuniform vec3 diffuse[NLIGHTS];\nuniform vec3 lightDir[NLIGHTS];\nuniform bool viewpoint[NLIGHTS];\nuniform bool finite[NLIGHTS];\n#endif\n#endif // IS_LIT\n\n#ifdef IS_TWOSIDED\nuniform bool front;\nvarying float normz;\n#endif\n\n#ifdef FAT_LINES\nvarying vec2 vPoint;\nvarying float vLength;\n#endif\n\nvoid main(void) {\n  vec4 fragColor;\n#ifdef FAT_LINES\n  vec2 point = vPoint;\n  bool neg = point.y < 0.0;\n  point.y = neg ? (point.y + vLength)/(1.0 - vLength) :\n                 -(point.y - vLength)/(1.0 - vLength);\n#if defined(IS_TRANSPARENT) && defined(IS_LINESTRIP)\n  if (neg && length(point) <= 1.0) discard;\n#endif\n  point.y = min(point.y, 0.0);\n  if (length(point) > 1.0) discard;\n#endif // FAT_LINES\n  \n#ifdef ROUND_POINTS\n  vec2 coord = gl_PointCoord - vec2(0.5);\n  if (length(coord) > 0.5) discard;\n#endif\n  \n#if NCLIPPLANES > 0\n  for (int i = 0; i < NCLIPPLANES; i++)\n    if (dot(vPosition, vClipplane[i]) < 0.0) discard;\n#endif\n    \n#ifdef FIXED_QUADS\n    vec3 n = vec3(0., 0., 1.);\n#elif defined(IS_LIT)\n    vec3 n = normalize(vNormal.xyz);\n#endif\n    \n#ifdef IS_TWOSIDED\n    if ((normz <= 0.) != front) discard;\n#endif\n    \n#ifdef IS_LIT\n    vec3 eye = normalize(-vPosition.xyz/vPosition.w);\n    vec3 lightdir;\n    vec4 colDiff;\n    vec3 halfVec;\n    vec4 lighteffect = vec4(emission, 0.);\n    vec3 col;\n    float nDotL;\n#ifdef FIXED_QUADS\n    n = -faceforward(n, n, eye);\n#endif\n    \n#if NLIGHTS > 0\n    for (int i=0;i<NLIGHTS;i++) {\n      colDiff = vec4(vCol.rgb * diffuse[i], vCol.a);\n      lightdir = lightDir[i];\n      if (!viewpoint[i])\n        lightdir = (mvMatrix * vec4(lightdir, 1.)).xyz;\n      if (!finite[i]) {\n        halfVec = normalize(lightdir + eye);\n      } else {\n        lightdir = normalize(lightdir - vPosition.xyz/vPosition.w);\n        halfVec = normalize(lightdir + eye);\n      }\n      col = ambient[i];\n      nDotL = dot(n, lightdir);\n      col = col + max(nDotL, 0.) * colDiff.rgb;\n      col = col + pow(max(dot(halfVec, n), 0.), shininess) * specular[i];\n      lighteffect = lighteffect + vec4(col, colDiff.a);\n    }\n#endif\n    \n#else // not IS_LIT\n    vec4 colDiff = vCol;\n    vec4 lighteffect = colDiff;\n#endif\n    \n#ifdef IS_TEXT\n    vec4 textureColor = lighteffect*texture2D(uSampler, vTexcoord);\n#endif\n    \n#ifdef HAS_TEXTURE\n#ifdef TEXTURE_rgb\n    vec4 textureColor = lighteffect*vec4(texture2D(uSampler, vTexcoord).rgb, 1.);\n#endif\n    \n#ifdef TEXTURE_rgba\n    vec4 textureColor = lighteffect*texture2D(uSampler, vTexcoord);\n#endif\n    \n#ifdef TEXTURE_alpha\n    vec4 textureColor = texture2D(uSampler, vTexcoord);\n    float luminance = dot(vec3(1.,1.,1.), textureColor.rgb)/3.;\n    textureColor =  vec4(lighteffect.rgb, lighteffect.a*luminance);\n#endif\n    \n#ifdef TEXTURE_luminance\n    vec4 textureColor = vec4(lighteffect.rgb*dot(texture2D(uSampler, vTexcoord).rgb, vec3(1.,1.,1.))/3., lighteffect.a);\n#endif\n    \n#ifdef TEXTURE_luminance_alpha\n    vec4 textureColor = texture2D(uSampler, vTexcoord);\n    float luminance = dot(vec3(1.,1.,1.),textureColor.rgb)/3.;\n    textureColor = vec4(lighteffect.rgb*luminance, lighteffect.a*textureColor.a);\n#endif\n    \n    fragColor = textureColor;\n\n#elif defined(IS_TEXT)\n    if (textureColor.a < 0.1)\n      discard;\n    else\n      fragColor = textureColor;\n#else\n    fragColor = lighteffect;\n#endif // HAS_TEXTURE\n    \n#ifdef HAS_FOG\n    // uFogParms elements: x = near, y = far, z = fogscale, w = (1-sin(FOV/2))/(1+sin(FOV/2))\n    // In Exp and Exp2: use density = density/far\n    // fogF will be the proportion of fog\n    // Initialize it to the linear value\n    float fogF;\n    if (uFogMode > 0) {\n      fogF = (uFogParms.y - vPosition.z/vPosition.w)/(uFogParms.y - uFogParms.x);\n      if (uFogMode > 1)\n        fogF = mix(uFogParms.w, 1.0, fogF);\n      fogF = fogF*uFogParms.z;\n      if (uFogMode == 2)\n        fogF = 1.0 - exp(-fogF);\n      // Docs are wrong: use (density*c)^2, not density*c^2\n      // https://gitlab.freedesktop.org/mesa/mesa/-/blob/master/src/mesa/swrast/s_fog.c#L58\n      else if (uFogMode == 3)\n        fogF = 1.0 - exp(-fogF*fogF);\n      fogF = clamp(fogF, 0.0, 1.0);\n      gl_FragColor = vec4(mix(fragColor.rgb, uFogColor, fogF), fragColor.a);\n    } else gl_FragColor = fragColor;\n#else\n    gl_FragColor = fragColor;\n#endif // HAS_FOG\n    \n}","players":[],"webGLoptions":{"preserveDrawingBuffer":true}},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>test &lt;- world
+# first define data.
+mydf &lt;- as.data.frame(cbind(as.numeric(test$groups == 1), as.numeric(test$groups == -1)))
+# define the coordinates. (note: this are from a sphere)
+mycoordinates &lt;- test$matlonglat
+mydf$Longitude &lt;- test$matlonglat[, 1]
+mydf$Latitude &lt;- test$matlonglat[, 2]
+points = st_as_sf(mydf, coords = c(&quot;Longitude&quot;, &quot;Latitude&quot;), crs = 4326)
+graticule = st_graticule(lat = seq(-80, 80, 10), lon = seq(-180, 180, 10))
+robinson = &quot;+proj=robin +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs&quot;
+projected = st_transform(points, robinson)
+graticule = st_transform(graticule, robinson)
+{
+    plot(projected$geometry, pch = 16, col = test$color, reset = FALSE)
+    plot(graticule$geometry, col = &quot;#00000040&quot;, add = T)
+}</code></pre>
+<p><img src="lab4_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
 </div>
 
 

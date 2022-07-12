@@ -1,5 +1,5 @@
 ---
-title: "Journal 5"
+title: "Journal 6"
 #bibliography: references.bib
 author: "Rob Salas"
 output: 
@@ -11,155 +11,555 @@ output:
  
 ---
 
-```{r setup, include=FALSE}
+```{r include=FALSE}
+
 knitr::opts_chunk$set(echo = TRUE)
+
+rgl::setupKnitr(autoprint = TRUE)
+
+fsave <- function(x, file, location = "./data/processed/", ...) {
+  if (!dir.exists(location))
+    dir.create(location)
+  datename <- substr(gsub("[:-]", "", Sys.time()), 1, 8)
+  totalname <- paste(location, datename, file, sep = "")
+  print(paste("SAVED: ", totalname, sep = ""))
+  save(x, file = totalname)
+}
+
+fpackage.check <- function(packages) {
+  lapply(packages, FUN = function(x) {
+    if (!require(x, character.only = TRUE)) {
+      install.packages(x, dependencies = TRUE)
+      library(x, character.only = TRUE)
+    }
+  })
+}
+
+colorize <- function(x, color) {
+  sprintf("<span style='color: %s;'>%s</span>", color, x)
+}
+
+packages = c("tidyverse", "rgl", "spdep", "geosphere", "truncnorm", "progress", "foreach", "doParallel",
+             "ape", "seg", "rgl", "OasisR", "compiler")
+
+fpackage.check(packages)
 ```
 
-## Benchmarking
+## Spatial functions
 
 ```{r}
-
-library("compiler")
-library("readr")
-library("dplyr")
-library("tidyr")
-
-fPvar <- function(votes, positions, method = "euclidean") {
-  positions <- positions * 2  #this function wants a range of 2
-  distances <- as.matrix(dist(positions, method = method))
-  votes_mat <- votes %o% votes
-  diag(votes_mat)[diag(votes_mat) > 1] <- diag(votes_mat)[diag(votes_mat) > 1] - 1
-  Pvar <- Hmisc::wtd.var(as.numeric(distances), as.numeric(votes_mat))
-  return(Pvar)
-}
-fPvar <- cmpfun(fPvar)
-
-fPV <- function(votes, positions, method = "euclidean") {
-  shares <- votes/sum(votes, na.rm = TRUE)
-  pbar <- rep(NA, NCOL(positions))
-  pbar <- as.numeric(t(shares) %*% positions)  #center of mass / mean position
+# let us define a Moran's I function (heavily based on Moran.I of package ape) you can toggle
+# rowstandardization
+fMoranI <- function(x, y = NULL, weight, scaled = FALSE, na.rm = FALSE, alternative = "two.sided", rowstandardize = TRUE) {
+  if (is.null(y)) {
+    y <- x
+  }
   
-  # distances to mean
-  if (method != "sq") {
-    if (NCOL(positions) == 1) {
-      distances <- as.matrix(stats::dist(c(pbar, positions), method = method))[, 1][-1]
+  if (dim(weight)[1] != dim(weight)[2])
+    stop("'weight' must be a square matrix")
+  nx <- length(x)
+  ny <- length(y)
+  if (dim(weight)[1] != nx | dim(weight)[1] != ny)
+    stop("'weight' must have as many rows as observations in 'x' (and 'y', for the bivariate case) ")
+  ei <- -1/(nx - 1)
+  nas <- is.na(x) | is.na(y)
+  if (any(nas)) {
+    if (na.rm) {
+      x <- x[!nas]
+      y <- y[!nas]
+      nx <- length(x)
+      weight <- weight[!nas, !nas]
     } else {
-      distances <- as.matrix(stats::dist(rbind(pbar, positions), method = method))[, 1][-1]
+      warning("'x' and/or 'y' have missing values: maybe you wanted to set na.rm = TRUE?")
+      return(list(observed = NA, expected = ei, sd = NA, p.value = NA))
     }
   }
-  # if (method=='sq') {distances <- ??}
+  if (rowstandardize) {
+    ROWSUM <- rowSums(weight)
+    ROWSUM[ROWSUM == 0] <- 1
+    weight <- weight/ROWSUM
+  }
+  s <- sum(weight)
+  mx <- mean(x)
+  sx <- x - mx
+  my <- mean(y)
+  sy <- y - my
+  v <- sum(sx^2)
+  cv <- sum(weight * sx %o% sy)
+  obs <- (nx/s) * (cv/v)
+  cv_loc <- rowSums(weight * sx %o% sy)
+  obs_loc <- (nx/s) * (cv_loc/v)
+  if (scaled) {
+    i.max <- (nx/s) * (sd(rowSums(weight) * sx)/sqrt(v/(nx - 1)))
+    obs <- obs/i.max
+    obs_loc <- obs_loc/i.max
+  }
+  S1 <- 0.5 * sum((weight + t(weight))^2)
+  S2 <- sum((apply(weight, 1, sum) + apply(weight, 2, sum))^2)
+  s.sq <- s^2
+  k <- (sum(sx^4)/nx)/(v/nx)^2
+  sdi <- sqrt((nx * ((nx^2 - 3 * nx + 3) * S1 - nx * S2 + 3 * s.sq) - k * (nx * (nx - 1) * S1 - 2 *
+                                                                             nx * S2 + 6 * s.sq))/((nx - 1) * (nx - 2) * (nx - 3) * s.sq) - 1/((nx - 1)^2))
+  alternative <- match.arg(alternative, c("two.sided", "less", "greater"))
+  pv <- pnorm(obs, mean = ei, sd = sdi)
+  if (alternative == "two.sided")
+    pv <- if (obs <= ei)
+      2 * pv else 2 * (1 - pv)
+  if (alternative == "greater")
+    pv <- 1 - pv
+  list(observed = obs, expected = ei, sd = sdi, p.value = pv, observed_locals = obs_loc)
   
-  # defining the constant
-  if (method == "euclidean") {
-    k <- 2/sqrt(NCOL(positions))
-  }
-  if (method == "manhattan") {
-    k <- 2/NCOL(positions)
-  }
-  if (method == "sq") {
-    k <- 1
-  }
-  PV <- k * sum(shares * distances)
-  return(PV)
-}
-fPV <- cmpfun(fPV)
-
-fPER <- function(alpha = 1, votes, positions, method = "euclidean") {
-  positions <- positions
-  distances <- as.matrix(stats::dist(positions, method = method))
-  shares <- votes/sum(votes, na.rm = TRUE)
-  sharesi <- shares^(1 + alpha)
-  sharesj <- shares
-  ER <- as.numeric(sharesi %*% distances %*% sharesj)
-  return(ER)
-}
-
-fPER <- cmpfun(fPER)
-
-#----
-
-library(purrr)
-library(future)
-library(furrr)
-
-load("./data/processed/20220708polling_df")
-
-js_df <- x
-rm(x)
-
-positions_df <- read_csv2("./data/kieskompas_positie_partijen.csv")  #change to your own file!!
-
-js_df <- ungroup(js_df)
-
-js_df$Pvar <- rep(NA, nrow(js_df))
-js_df$PER <- rep(NA, nrow(js_df))
-js_df$PV <- rep(NA, nrow(js_df))
-
-# I will use dimensions as above, but you will need to tweak of course.
-positions <- (cbind(positions_df$x, positions_df$y) + 2)/4  #to range 0-1
-
-
-parties <- c("BIJ1", "PvdD", "GL", "SP", "PvdA", "DENK", "Volt", "D66", "CU", "PLUS50",
-             "PVV", "CDA", "BBB", "SGP", "VVD", "JA21", "FvD")
-
-parties
-
-#DOIT
-
-library(rbenchmark)
-
-benchmark("standard" = {
-  for (i in 1:nrow(js_df)) {
-    votes <- c(js_df$BIJ1[i], js_df$PvdD[i], js_df$GL[i], js_df$SP[i], js_df$PvdA[i], js_df$DENK[i],
-               js_df$Volt[i], js_df$D66[i], js_df$CU[i], js_df$PLUS50[i], js_df$PVV[i], js_df$CDA[i], js_df$BBB[i],
-               js_df$SGP[i], js_df$VVD[i], js_df$JA21[i], js_df$FvD[i])
-    js_df$Pvar[i] <- fPvar(votes = votes, positions = positions)
-    js_df$PER[i] <- fPER(votes = votes, positions = positions)
-    js_df$PV[i] <- fPV(votes = votes, positions = positions)
-  }
-},
-  "rowwise" = {
-  js_df %>% 
-    rowwise() %>% 
-    mutate(Pvar = fPvar(votes = c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD), positions = positions)) %>% 
-    mutate(PER = fPER(votes = c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD), positions = positions)) %>% 
-    mutate(PV = fPV(votes = c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD), positions = positions)) %>% 
-    select(Pvar, PER, PV)
-},
-"rowwise_c_across" = {
-  js_df %>% 
-    select(Adres, all_of(parties)) %>% 
-    rowwise() %>% 
-    mutate(Pvar = list(fPvar(votes = c_across(BIJ1:FvD),positions = !!positions))) %>% 
-    mutate(PER = list(fPER(votes = c_across(BIJ1:FvD),positions = !!positions))) %>% 
-    mutate(PV = list(fPV(votes = c_across(BIJ1:FvD),positions = !!positions))) %>% 
-    unnest(c(Pvar, PER, PV)) %>% 
-    select(Pvar, PER, PV)
-},
-"nested_and_map" = {
-  js_df %>% 
-    mutate(id = row_number()) %>% 
-    group_by(id) %>% 
-    summarise(parties_result = list(c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD))) %>% 
-    mutate(Pvar = map_dbl(parties_result, function(x) fPvar(votes = x, positions = !!positions))) %>% 
-    mutate(PER = map_dbl(parties_result, function(x) fPER(votes = x, positions = !!positions))) %>% 
-    mutate(PV = map_dbl(parties_result, function(x) fPV(votes = x, positions = !!positions))) %>% 
-    select(Pvar, PER, PV)
-},
-"nested_and_furrr" = {
-  plan(multisession, workers = availableCores() - 1)
   
-  js_df %>% 
-    mutate(id = row_number()) %>% 
-    group_by(id) %>% 
-    summarise(parties_result = list(c(BIJ1, PvdD, GL, SP, PvdA, DENK, Volt, D66, CU, PLUS50, PVV, CDA, BBB, SGP, VVD, JA21, FvD))) %>% 
-    mutate(Pvar = future_map_dbl(parties_result, function(x) fPvar(votes = x, positions = !!positions))) %>% 
-    mutate(PER = future_map_dbl(parties_result, function(x) fPER(votes = x, positions = !!positions))) %>% 
-    mutate(PV = future_map_dbl(parties_result, function(x) fPV(votes = x, positions = !!positions))) %>% 
-    select(Pvar, PER, PV)
-},
-replications = 3,
-columns = c("test", "elapsed"))
+}
+fMoranI <- cmpfun(fMoranI)
+
+# Density corrected Moran's I.
+fMoranIdens <- function(x, y = NULL, proxmat, dens = NULL, N = length(x)) {
+  # Adapted from Anselin (1995, eq. 7, 10, 11)
+  # https://onlinelibrary.wiley.com/doi/epdf/10.1111/j.1538-4632.1995.tb00338.x dens: the
+  # proportion of individuals in each cell over the district population if individual level data
+  # dens is.null and N is simply length of input if we have aggregate data then N should be total
+  # population size (or actually just a large number)
+  if (is.null(y)) {
+    y <- x
+  }
+  if (is.null(dens)) {
+    dens <- rep(1/N, times = N)
+  }
+  
+  # correct scaling of opinions for densities #this is really inefficient, should use weighted
+  # var from hmsci
+  v1dens_ind <- rep(x, times = (dens * N))
+  v1dens <- (x - mean(v1dens_ind))/sd(v1dens_ind)
+  v2dens_ind <- rep(y, times = (dens * N))
+  v2dens <- (y - mean(v2dens_ind))/sd(v2dens_ind)
+  
+  # (density) weighted proximity matrix
+  w <- proxmat
+  wdens <- t(dens * t(w))
+  wdens <- wdens/rowSums(wdens)
+  
+  # density and proximity weighted locals
+  localI <- (v1dens * wdens %*% v2dens)  #formula 7
+  
+  # correct the normalization constants
+  m2 <- sum(v1dens^2 * dens)
+  S0 <- N  #we know the weight matrix for the individual level should add up to N
+  ydens <- S0 * m2
+  globalI <- sum(localI * dens * N)/ydens  # formula 10/11
+  
+  return(list(globalI = globalI, localI = as.numeric(localI)))
+}
+fMoranIdens <- cmpfun(fMoranIdens)
+```
+
+## Function to generate worlds
+
+```{r}
+# version 09-06-2007
+
+
+# function define world
+iniworld <- function(N = 2000, cn = 4, h = 1, tc = 0.9, pg = c(0.5, 0.5), distropTN = TRUE, plotworld = TRUE,
+                     seed = NULL) {
+  # N= number of agents (even number) cn= number of clusters (even number) h= cluster homogeneity
+  # (0.5-1) tc= thinning constant. .9 means retain 90% pg= proportion of groups; length is number
+  # of groups distropTN= use truncated normal to generate opinions, default = false
+  
+  # in paper opinions [0,1], here [-1,1] in paper tc is 1 - tc
+  
+  if (is.null(seed))
+    seed <- sample(45667:159876, 1)
+  
+  set.seed(seed)
+  
+  N_ori <- N
+  
+  # functions
+  spher_to_cart <- function(r, theta, phi) {
+    x = r * cos(phi) * sin(theta)
+    y = r * sin(theta) * sin(phi)
+    z = r * cos(theta)
+    coordinatesxyz <- matrix(c(x, y, z), ncol = 3)
+    return(coordinatesxyz)
+  }
+  
+  distl <- function(x) {
+    distVincentySphere(x, matlonglat, r = 1)
+  }
+  
+  # if tc<1 we need to increase initial N, make sure to keep even number
+  if (tc < 1) {
+    N <- trunc(N/(tc * 10)) * 10
+  }
+  
+  # define (random) position of agents on sphere:
+  # http://mathworld.wolfram.com/SpherePointPicking.html
+  r <- 1
+  phi <- 2 * pi * runif(N)
+  theta <- acos(2 * runif(N) - 1)
+  coordinatesxyz <- spher_to_cart(r, theta, phi)
+  
+  phi_r <- (360 * phi)/(2 * pi)
+  theta_r <- (180 * theta)/pi
+  lat <- 90 - theta_r
+  long <- ifelse(phi_r >= 0 & phi_r < 180, -phi_r, abs(phi_r - 360))
+  
+  matlonglat <- matrix(c(long, lat), ncol = 2)
+  
+  # improve: we only need to calculate half
+  matlonglatlist <- lapply(seq_len(nrow(matlonglat)), function(i) matlonglat[i, ])
+  
+  distl <- function(x) {
+    distVincentySphere(x, matlonglat, r = 1)
+  }
+  
+  matdist <- sapply(matlonglatlist, distl)
+  
+  # model segregation: could be improved. check existing packages.
+  parents <- sample(1:N, cn)
+  groups <- rep(NA, N)
+  # fix if cn==1
+  groups[parents] <- sample(c(rep(1, round(cn * pg[1])), rep(-1, cn - round(cn * pg[1]))), cn, replace = FALSE)
+  
+  # to whom do children belong
+  clusterchildren <- rep(NA, N)
+  
+  for (i in c(1:N)) {
+    if (!(i %in% parents)) {
+      # which parents is closest
+      clusterchildren[i] <- parents[which(matdist[i, parents] == min(matdist[i, parents]))]
+      # give child same initial value as closest parent
+      group <- groups[clusterchildren[i]]
+      # change value child depending of cluster homogeneity
+      groups[i] <- ifelse(group == -1, sample(c(-1, 1), 1, prob = c(h, 1 - h)), sample(c(-1, 1),
+                                                                                       1, prob = c(1 - h, h)))
+    }
+  }
+  
+  # define opinions of agents
+  if (distropTN == TRUE) {
+    opinions <- rtruncnorm(N, a = -1, b = 1, mean = 0, sd = 0.45)
+  }
+  # if(distropTN==FALSE) {opinions <- runif(N, min = -1, max = 1)}
+  
+  # for (future) plotting
+  color <- ifelse(groups == 1, "blue", "red")
+  
+  # thin clusters, make cluster boundaries sharper
+  if (tc < 1) {
+    childIDi <- sampletc <- NA
+    # put in big function
+    for (i in 1:cn) {
+      childIDi <- which(clusterchildren == parents[i])
+      distchildparenti <- matdist[parents[i], childIDi]
+      # samplei <- sample(childIDi, trunc(tc*length(childIDi)),
+      # prob=exp(-distchildparenti)^2)
+      cutoffdistance <- quantile(distchildparenti, tc)
+      samplei <- childIDi[distchildparenti < cutoffdistance]
+      sampletc <- c(sampletc, samplei)
+    }
+    clusterchildren <- sampletc <- sampletc[-1]
+    sampletc <- c(sampletc, parents)
+    N_obs <- length(sampletc)
+  }
+  
+  N <- N_ori  #setting back to original input
+  
+  if (tc == 1) {
+    sampletc <- NA
+    N_obs <- N_ori
+  }
+  
+  if (plotworld & tc == 1) {
+    .check3d()
+    rgl.close()
+    plot3d(coordinatesxyz, col = color, box = FALSE, axes = FALSE, xlab = "", ylab = "", zlab = "",
+           size = 8, xlim = c(-1, 1), ylim = c(-1, 1), zlim = c(-1, 1))
+    rgl.spheres(0, 0, 0, radius = 0.995, color = "grey")
+  }
+  
+  if (tc == 1) {
+    worldlist <- list(seed, coordinatesxyz, color, groups, opinions, matdist, N, cn, h, tc, pg, N_obs,
+                      parents, clusterchildren, matlonglat)
+    names(worldlist) <- c("seed", "coordinatesxyz", "color", "groups", "opinions", "matdist", "N",
+                          "cn", "h", "tc", "pg", "N_obs", "parents", "clusterchildren", "matlonglat")
+    return(worldlist)
+  }
+  
+  if (plotworld & tc < 1) {
+    .check3d()
+    rgl.close()
+    plot3d(coordinatesxyz[sampletc, ], col = color[sampletc], box = FALSE, axes = FALSE, xlab = "",
+           ylab = "", zlab = "", size = 8, xlim = c(-1, 1), ylim = c(-1, 1), zlim = c(-1, 1))
+    rgl.spheres(0, 0, 0, radius = 0.995, color = "grey")
+  }
+  
+  if (tc < 1) {
+    worldlist <- list(seed, coordinatesxyz[sampletc, ], color[sampletc], groups[sampletc], opinions[sampletc],
+                      matdist[sampletc, sampletc], N, cn, h, tc, pg, N_obs, parents, clusterchildren, matlonglat[sampletc,
+                      ])
+    names(worldlist) <- c("seed", "coordinatesxyz", "color", "groups", "opinions", "matdist", "N",
+                          "cn", "h", "tc", "pg", "N_obs", "parents", "clusterchildren", "matlonglat")
+    return(worldlist)
+  }
+  
+  
+}
+```
+
+## Generate world
+
+```{r}
+N = c(100, 200, 300)
+cn <- c(4, 8, 16)
+h <- c(0.6, 0.7, 0.8)
+tc <- c(0.6, 0.7, 0.8)
+pg <- c(0.5, 0.6, 0.7)
+```
+
+
+```{r eval=FALSE} 
+
+# run the loop in parallel
+n.cores <- parallel::detectCores() - 2 #save one core for other work
+# create the cluster
+my.cluster <- parallel::makeCluster(n.cores, type = "PSOCK")
+# register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+
+set.seed(83823)
+
+# make sure to define the correct folder beforehand
+dataworlds <-
+  foreach(Nsim = N, i = icount()) %:% foreach(cnsim = cn, j = icount()) %:% foreach(hsim = h,
+                                                                                    k = icount()) %:% foreach(tcsim = tc, l = icount()) %:% foreach(
+                                                                                      pgsim = pg,
+                                                                                      m = icount(),
+                                                                                      .packages = packages,
+                                                                                      .inorder = TRUE
+                                                                                    ) %dopar% {
+                                                                                      world <-
+                                                                                        iniworld(
+                                                                                          N = Nsim,
+                                                                                          cn = cnsim,
+                                                                                          h = hsim,
+                                                                                          tc = tcsim,
+                                                                                          pg = pgsim,
+                                                                                          plotworld = FALSE,
+                                                                                          seed = NULL
+                                                                                        )
+                                                                                      save(
+                                                                                        world,
+                                                                                        file = paste(
+                                                                                          "./data/processed/worlds/worldN",
+                                                                                          Nsim,
+                                                                                          "cn",
+                                                                                          cnsim,
+                                                                                          "h",
+                                                                                          hsim,
+                                                                                          "tc",
+                                                                                          tcsim,
+                                                                                          "pg",
+                                                                                          pgsim,
+                                                                                          "rda",
+                                                                                          sep = ""
+                                                                                        ),
+                                                                                        compress = "bzip2"
+                                                                                      )
+                                                                                      # return(test)
+                                                                                    }
 
 ```
+
+## Generated world spatial measures
+
+```{r}
+load(paste("./data/processed/worlds/worldN", N[3], "cn", cn[3], "h", h[3], "tc", tc[3], "pg", pg[2],
+           "rda", sep = ""))
+
+
+geodistances <- world$matdist
+# we set distance to yourself to 0, be aware that in the weight matrix we may or may not want to
+# set weight to yourself as 1.
+diag(geodistances) <- 0
+# retrieve the group membership
+mydf <- as.data.frame(cbind(as.numeric(world$groups == 1), as.numeric(world$groups == -1)))
+# define the coordinates
+mycoordinates <- world$matlonglat
+
+s <- 1
+geodistances <- world$matdist
+diag(geodistances) <- 0
+mygeodistances <- as.dist(geodistances)  #the class of the distance matrix should be dist.              
+
+# explain!
+myenv <- seg::localenv(x = mycoordinates, data = mydf, power = s, useExp = TRUE, scale = FALSE, maxdist = pi,
+                       sprel = mygeodistances, tol = .Machine$double.eps)
+
+segs <- spatseg(env = myenv, method = "all", useC = TRUE, negative.rm = FALSE, tol = .Machine$double.eps)
+print("spatial dissimilarity")
+segs@d  #spatial dissimilarity
+print("spatial relative diversity")
+segs@r  #spatial relative diversity
+print("spatial information theory")
+segs@h  #spatial information theory
+print("Spatial Isolation group 1")
+segs@p[1, 1]  #spatial exposure/isolation
+print("Spatial Exposure group 1 to 2")
+segs@p[1, 2]
+print("Spatial Exposure group 2 to 1")
+segs@p[2, 1]
+print("Spatial Isolation group 2")
+segs@p[2, 2]
+
+# spatial proximity
+sp <- isp(x = mycoordinates, data = mydf, nb = geodistances, fun = function(x) {
+  exp(-x * 1)
+})
+print("Spatial proximity")
+
+Eo <- mean(c(myenv@env[, 2][myenv@data[, 1] == 1], myenv@env[, 1][myenv@data[, 2] == 1]))
+Eo
+
+weights <- exp(-geodistances * s)
+diag(weights) <- 0  #for Moran we do not want own location, because we are dealing with point data. 
+
+# let us interpret the group membership as an attribute of the point.
+MIg <- fMoranI(world$groups, scaled = FALSE, weight = weights, na.rm = TRUE)
+MIg$observed
+
+# let us use count of group membership 1.
+MIc1 <- fMoranI(myenv@data[, 1], scaled = FALSE, weight = weights, na.rm = TRUE)
+MIc1$observed
+
+# let us use count of group membership 2.
+MIc2 <- fMoranI(myenv@data[, 2], scaled = FALSE, weight = weights, na.rm = TRUE)
+MIc2$observed
+
+geodistances <- world$matdist
+diag(geodistances) <- Inf
+SP(x = mydf, d = geodistances, fdist = "e", beta = s)
+
+geodistances <- world$matdist
+DPxy(x = mydf, d = geodistances, beta = s)
+```
+
+```{r eval=FALSE}
+# calculate different segregation indices for each world
+
+N = c(100, 200, 300)
+cn = c(4, 8, 16)
+h = c(0.6, 0.7, 0.8)
+tc = c(0.6, 0.7, 0.8)
+pg = c(0.5, 0.6, 0.7)
+s = c(1, 2, 4)
+
+# run the loop in parallel
+n.cores <- parallel::detectCores() - 1
+my.cluster <- parallel::makeCluster(n.cores, type = "PSOCK")
+doParallel::registerDoParallel(cl = my.cluster)
+
+# something goes wrong with N=100 h[5], pg[5] #yes all groups are same color , thus option
+# .errorhandling = remove
+dataworldsN1 <- foreach(Nsim = N, i = icount(), .combine = "rbind") %:% foreach(cnsim = cn, j = icount(),
+                                                                                .combine = "rbind") %:% foreach(hsim = h, k = icount(), .combine = "rbind") %:% foreach(tcsim = tc,
+                                                                                                                                                                        l = icount(), .combine = "rbind") %:% foreach(pgsim = pg, m = icount(), .combine = "rbind") %:% foreach(ssim = s,
+                                                                                                                                                                                                                                                                                .packages = packages, n = icount(), .combine = "rbind", .inorder = FALSE, .errorhandling = "remove") %dopar%
+  {
+    
+    load(paste("./data/processed/worlds/worldN", Nsim, "cn", cnsim, "h", hsim, "tc", tcsim, "pg",
+               pgsim, "rda", sep = ""))
+    
+    geodistances <- world$matdist
+    diag(geodistances) <- 0
+    mydf <- as.data.frame(cbind(as.numeric(world$groups == 1), as.numeric(world$groups == -1)))
+    mycoordinates <- world$matlonglat
+    geodistances <- world$matdist
+    diag(geodistances) <- 0
+    mygeodistances <- as.dist(geodistances)  #the class of the distance matrix should be dist.              
+    
+    myenv <- seg::localenv(x = mycoordinates, data = mydf, power = ssim, useExp = TRUE, scale = FALSE,
+                           maxdist = pi, sprel = mygeodistances, tol = .Machine$double.eps)
+    
+    # PACKAGE SEG
+    segs <- spatseg(env = myenv, method = "all", useC = TRUE, negative.rm = FALSE, tol = .Machine$double.eps)
+    D <- segs@d
+    R <- segs@r
+    H <- segs@h
+    P_11 <- segs@p[1, 1]
+    P_12 <- segs@p[1, 2]
+    P_21 <- segs@p[2, 1]
+    P_22 <- segs@p[2, 2]
+    
+    # Moran's I
+    weights <- exp(-geodistances * ssim)
+    diag(weights) <- 0  #for Moran we do not want own location. 
+    MI <- fMoranI(world$groups, scaled = FALSE, weight = weights, na.rm = TRUE)$observed
+    
+    # mean local exposure to outgroup ###not a segregation measure but useful in ABM###
+    Eo <- mean(c(myenv@env[, 2][myenv@data[, 1] == 1], myenv@env[, 1][myenv@data[, 2] == 1]))
+    
+    # whites spatial proximity index
+    SP <- SP(x = mydf, d = geodistances, fdist = "e", beta = ssim)
+    
+    id <- i * 10000 + j * 1000 + k * 100 + l * 10 + m
+    
+    # SAVE IN DATAFRAME
+    data.frame(id = id, s = ssim, N = Nsim, cn = cnsim, h = hsim, tc = tcsim, pg = pgsim, seed = world$seed,
+               MI = MI, D = D, R = R, H = H, P_11 = P_11, P_12 = P_12, P_21 = P_21, P_22 = P_22, Eo = Eo,
+               SP = SP, i = i, j = j, k = k, l = l, m = m, n = n)
+    
+  }
+
+fsave(dataworldsN1, "SegWorlds")
+```
+
+```{r}
+load("./data/processed/20220712SegWorlds")
+worlds <- x
+rm(x)
+
+require(tidyverse)
+
+worlds %>%
+  filter(N == 300) %>%
+  arrange(desc(H)) -> worldssel
+
+load(paste("./data/processed/worlds/worldN", worldssel$N[1], "cn", worldssel$cn[1], "h", worldssel$h[1],
+           "tc", worldssel$tc[1], "pg", worldssel$pg[1], "rda", sep = ""))
+
+world1 <- world
+
+{
+  plot3d(world1$coordinatesxyz, col = world1$color, box = FALSE, axes = FALSE, xlab = "", ylab = "",
+         zlab = "", size = 4, xlim = c(-1, 1), ylim = c(-1, 1), zlim = c(-1, 1))
+  rgl.spheres(0, 0, 0, radius = 0.99, color = "grey")
+  
+  rglwidget()
+}
+
+```
+
+```{r}
+test <- world
+# first define data.
+mydf <- as.data.frame(cbind(as.numeric(test$groups == 1), as.numeric(test$groups == -1)))
+# define the coordinates. (note: this are from a sphere)
+mycoordinates <- test$matlonglat
+mydf$Longitude <- test$matlonglat[, 1]
+mydf$Latitude <- test$matlonglat[, 2]
+points = st_as_sf(mydf, coords = c("Longitude", "Latitude"), crs = 4326)
+graticule = st_graticule(lat = seq(-80, 80, 10), lon = seq(-180, 180, 10))
+robinson = "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+projected = st_transform(points, robinson)
+graticule = st_transform(graticule, robinson)
+{
+    plot(projected$geometry, pch = 16, col = test$color, reset = FALSE)
+    plot(graticule$geometry, col = "#00000040", add = T)
+}
+```
+
+
 
