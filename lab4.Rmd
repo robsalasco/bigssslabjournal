@@ -15,8 +15,6 @@ output:
 
 knitr::opts_chunk$set(echo = TRUE)
 
-rgl::setupKnitr(autoprint = FALSE)
-
 fsave <- function(x, file, location = "./data/processed/", ...) {
   if (!dir.exists(location))
     dir.create(location)
@@ -522,6 +520,8 @@ worlds <- x
 rm(x)
 
 require(tidyverse)
+
+rgl::setupKnitr(autoprint = TRUE)
 
 worlds %>%
   filter(N == 300) %>%
