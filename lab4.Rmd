@@ -15,7 +15,7 @@ output:
 
 knitr::opts_chunk$set(echo = TRUE)
 
-rgl::setupKnitr(autoprint = TRUE)
+rgl::setupKnitr(autoprint = FALSE)
 
 fsave <- function(x, file, location = "./data/processed/", ...) {
   if (!dir.exists(location))
