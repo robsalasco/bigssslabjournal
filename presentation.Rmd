@@ -51,7 +51,7 @@ colorize <- function(x, color) {
 ## Loading packages
 
 ```{r}
-packages = c("tidyverse", "sf", "ggplot2", "ggimage", "ggmap", "compiler", "Hmisc", "stats", "seg", "leaflet")
+packages = c("tidyverse", "sf", "ggplot2", "ggimage", "ggmap", "compiler", "Hmisc", "stats", "seg", "leaflet", "ggcorrplot", "patchwork", "tidyr", "dplyr", "purrr", "leaflet.extras2")
 
 fpackage.check(packages)
 ```
@@ -268,7 +268,7 @@ rm(x)
 
 ## Raster data 
 
-```{r}
+```{r, cache=TRUE}
 # Loading 100m-by-100m raster data:
 rast <- sf::st_read(dsn = "./data/rawGIS/cbs_vk100_2021_v1.gpkg")
 
@@ -284,7 +284,7 @@ postcode6Shape <- sf::st_read(dsn = "./data/rawGIS/", layer = "CBS_pc6_2020_v1")
 
 ## Removing NA and fixing coordinates
 
-```{r}
+```{r, cache=TRUE}
 #more variables needed (check all variables and have a look)
 rast <- rast[rast$aantal_inwoners != -99997, ]
 rast <- sf::st_transform(x = rast, crs = sf::st_crs("+proj=longlat +datum=WGS84"))
@@ -308,15 +308,14 @@ shape <- districtShape[districtShape$GM_NAAM == city,]
 
 ## Adding data to raster cells
 
-```{r}
+```{r, cache=TRUE}
+suppressMessages(sf_use_s2(FALSE))
 
 # Adding administrative area information:
-rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = neighbShape, sf::sf_use_s2(FALSE)  # See https://github.com/r-spatial/sf/issues/1817
-)[,
-    c(1:39, 78)]  # selecting only relevant columns
+rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = neighbShape)[,c(1:39, 78)]  # selecting only relevant columns
 
 # Adding postcode information:
-rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = postcode6Shape, sf::sf_use_s2(FALSE))[, c(1:40,
+rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = postcode6Shape)[, c(1:40,
     74)]  # selecting only relevant columns
 
 # We now have the 6-digits postcodes; the 4- and 5- digits postcodes then are:
@@ -326,15 +325,15 @@ rast$PC4 <- substr(rast$PC6, start = 1, stop = 4)
 
 ## Loading pollstations data as sf
 
-```{r}
+```{r, cache=TRUE}
 pollstations <- sf::st_as_sf(x = as.data.frame(pollstations), crs = sf::st_crs("+proj=longlat +datum=WGS84"),
     coords = c("long", "lat"))
 ```
 
 ## Creating voronoi polygons (entire country)
 
-```{r}
-voronoi <- sf::st_voronoi(x = do.call(c, pollstations$geometry), envelope = NULL  # this is in case we want to specify the Voronoi boundaries
+```{r voro}
+voronoi <- sf::st_voronoi(x = pollstations %>% st_combine(), envelope = NULL  # this is in case we want to specify the Voronoi boundaries
 )
 
 # This ensures that 'voronoi' has the correct CRS
@@ -355,13 +354,13 @@ cityrast <- rast[cityrast_id, ]
 
 ## Assign raster cells to their Voronoi tile (enire country)
 
-```{r}
-rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = voronoi, sf::sf_use_s2(FALSE))
+```{r, cache=TRUE}
+rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = voronoi)
 ```
 
 ## Visualization
 
-```{r}
+```{r t}
 palette <- leaflet::colorFactor(sample(colors(), length(unique(cityrast$voronoi))), domain = cityrast$voronoi)
 
 leaflet::leaflet(voronoi) |>
@@ -371,8 +370,8 @@ leaflet::leaflet(voronoi) |>
   leaflet::addCircles(data = pollstations, color = "red", opacity = 1) |>
   leaflet::addCircles(data = cityrast, label = ~voronoi, color = ~palette(as.factor(voronoi)), opacity = 0.7) |>
   leaflet::setView(lng = 4.706, lat = 52.0153, zoom = 14) #correct the setview
-plot(shape)
-st_centroid(st_union(shape))
+#plot(shape)
+#st_centroid(st_union(shape))
 ```
 
 
@@ -440,24 +439,28 @@ cityvor <- voronoi[voronoi$voronoi %in% rast$voronoi[cityrast_id], ]
 <!---add a new social dimension yourself! do not just replicate what we did in class. ---> 
 
 ```{r}
-cityrast$pnw <- cityrast$percentage_niet_westerse_migr_achtergr
-cityrast$pnw[cityrast$pnw == -99997] <- 0  # or some other arbitrary value
-cityrast$pnw <- cityrast$pnw/100
+# number of people unemployed or with social benefits
+cityrast$apmuoa <- cityrast$aantal_personen_met_uitkering_onder_aowlft
+cityrast$apmuoa[cityrast$apmuoa == -99997] <- 0  # or some other arbitrary value
+
+#cityrast$pnw <- cityrast$percentage_niet_westerse_migr_achtergr
+#cityrast$pnw[cityrast$pnw == -99997] <- 0  # or some other arbitrary value
+#cityrast$pnw <- cityrast$pnw/100
 ```
 
 ```{r}
-cityrast$n_nw <- cityrast$aantal_inwoners * cityrast$pnw
-cityrast$n_w <- cityrast$aantal_inwoners - cityrast$n_nw
+cityrast$n_apmuoa <- cityrast$aantal_inwoners - cityrast$apmuoa
 ```
 
 # calculating the segregation measures using different slopes and for each voronoi in the city
 
 ```{r}
 # slope of the distance decay function:
-s <- 2
+slopes <- c(1,2,3,4,5)
 
-# For each voronoi tile "i" in the city...
-for (u in 1:nrow(cityvor)) {
+for (s in slopes) {
+  # For each voronoi tile "i" in the city...
+  for (u in 1:nrow(cityvor)) {
   
   #... we find which raster cells belong to tile "i".
   #tilerast <- subset(cityrast, cityrast$voronoi == cityvor$voronoi[u])
@@ -474,7 +477,7 @@ for (u in 1:nrow(cityvor)) {
     
     #... calculate the local environment of each cell...
     myenv <- fcalcLocalEnv(
-      data = as.matrix(cbind(tilerast$n_w, tilerast$n_nw)),
+      data = as.matrix(cbind(tilerast$apmuoa, tilerast$n_apmuoa)),
       distmat = distmat,
       coords = sf::st_coordinates(tilerast),
       s = s
@@ -494,24 +497,28 @@ for (u in 1:nrow(cityvor)) {
 
     
     #... and, finally, save the I estimate to our data.frame "vor":
+    #cityvor$moranI <- NA
     cityvor$moranI[u] <- I$globalI
     
     # calculating spatial segregation
     spatialseg <-seg::spatseg(env = myenv)
+    #cityvor$d <- NA
     cityvor$d[u] <- spatialseg@d
-    
   }
-  #dplyr::rename(cityvor, paste("MoranI", "_", s, sep="") = moranI )
+
+  }
+  names(cityvor)[names(cityvor) == "moranI"] <- paste0("moranI_", s)
+  names(cityvor)[names(cityvor) == "d"] <- paste0("d_", s)
 }
+
 ```
 
 <!---maybe you wnat to make some plots here to show---> 
 
-## adding the polarization scoris of the polling stations to the segregation scores
+## adding the polarization scores of the polling stations to the segregation scores
 
 ```{r}
 voronoi2 <- merge(as.data.frame(cityvor), as.data.frame(pollstations))
-
 ```
 
 <!---you could make a spatial object again via sf of voronoi2 again. In that cose you could plot both levels of polarization and segregation. --> 
@@ -519,35 +526,167 @@ voronoi2 <- merge(as.data.frame(cityvor), as.data.frame(pollstations))
 ```{r}
 
 voronoi2_sf <- st_as_sf(voronoi2, crs=st_crs(cityvor), geom=st_geometry(cityvor))
-plot(voronoi2_sf)
+#plot(voronoi2_sf)
 
 ```
 
 
 ```{r}
-cor(voronoi2$d, voronoi2$PVXY, use="complete.obs")
-cor(voronoi2$moranI, voronoi2$PVXY, use="complete.obs")
-cor(voronoi2$d, voronoi2$PVY, use="complete.obs")
-cor(voronoi2$moranI, voronoi2$PVY, use="complete.obs")
-cor(voronoi2$d, voronoi2$PVX, use="complete.obs")
-cor(voronoi2$moranI, voronoi2$PVX, use="complete.obs")
 
-cor(voronoi2$d, voronoi2$PERXY, use="complete.obs")
-cor(voronoi2$moranI, voronoi2$PERXY, use="complete.obs")
-cor(voronoi2$d, voronoi2$PERY, use="complete.obs")
-cor(voronoi2$moranI, voronoi2$PERY, use="complete.obs")
-cor(voronoi2$d, voronoi2$PERX, use="complete.obs")
-cor(voronoi2$moranI, voronoi2$PERX, use="complete.obs")
-
-cor(voronoi2$d, voronoi2$PvarX, use="complete.obs")
-cor(voronoi2$moranI, voronoi2$PvarXY, use="complete.obs")
-cor(voronoi2$d, voronoi2$PvarY, use="complete.obs")
-cor(voronoi2$moranI, voronoi2$PvarY, use="complete.obs")
-cor(voronoi2$d, voronoi2$PvarX, use="complete.obs")
-cor(voronoi2$moranI, voronoi2$PvarX, use="complete.obs")
+get_scores_seg_pol <- function(tslope) {
+  target <- voronoi2 %>% select(ends_with(paste0("_", tslope)))
+  
+  d1pvxy <- cor(target[[2]], voronoi2$PVXY, use = "complete.obs")
+  m1pvxy <- cor(target[[1]], voronoi2$PVXY, use = "complete.obs")
+  d1pvy <- cor(target[[2]], voronoi2$PVY, use = "complete.obs")
+  m1pvy <- cor(target[[1]], voronoi2$PVY, use = "complete.obs")
+  d1pvx <- cor(target[[2]], voronoi2$PVX, use = "complete.obs")
+  m1pvx <- cor(target[[1]], voronoi2$PVX, use = "complete.obs")
+  
+  pv_res <-
+    data.frame(
+      measure_seg = c("d", "m"),
+      pvxy = c(d1pvxy, m1pvxy),
+      pvy = c(d1pvy, m1pvy),
+      pvx = c(d1pvx, m1pvx)
+    ) %>%
+    gather(key = "measure_pol", value = "cor",-measure_seg)
+  
+  d1perxy <- cor(target[[2]], voronoi2$PERXY, use = "complete.obs")
+  m1perxy <- cor(target[[1]], voronoi2$PERXY, use = "complete.obs")
+  d1pery <- cor(target[[2]], voronoi2$PERY, use = "complete.obs")
+  m1pery <- cor(target[[1]], voronoi2$PERY, use = "complete.obs")
+  d1perx <- cor(target[[2]], voronoi2$PERX, use = "complete.obs")
+  m1perx <- cor(target[[1]], voronoi2$PERX, use = "complete.obs")
+  
+  per_res <-
+    data.frame(
+      measure_seg = c("d", "m"),
+      perxy = c(d1perxy, m1perxy),
+      pery = c(d1pery, m1pery),
+      perx = c(d1perx, m1perx)
+    ) %>% gather(key = "measure_pol", value = "cor",-measure_seg)
+  
+  d1pvarxy <- cor(target[[2]], voronoi2$PvarXY, use = "complete.obs")
+  m1pvarxy <- cor(target[[1]], voronoi2$PvarXY, use = "complete.obs")
+  d1pvary <- cor(target[[2]], voronoi2$PvarY, use = "complete.obs")
+  m1pvary <- cor(target[[1]], voronoi2$PvarY, use = "complete.obs")
+  d1pvarx <- cor(target[[2]], voronoi2$PvarX, use = "complete.obs")
+  m1pvarx <- cor(target[[1]], voronoi2$PvarX, use = "complete.obs")
+  
+  pvar_res <-
+    data.frame(
+      measure_seg = c("d", "m"),
+      pvarxy = c(d1pvarxy, m1pvarxy),
+      pvary = c(d1pvary, m1pvary),
+      pvarx = c(d1pvarx, m1pvarx)
+    ) %>% gather(key = "measure_pol", value = "cor",-measure_seg)
+  
+  return(bind_rows(pv_res, per_res, pvar_res) %>% mutate(slope = tslope))
+}
 
 ```
 
+```{r}
+map_dfr(slopes, get_scores_seg_pol) %>% filter(-0.2>=cor)
+```
 
+```{r}
+correlations <- map_dfr(slopes, get_scores_seg_pol) 
+correlations
+```
+
+
+```{r}
+#corr_slope1 <- ggcorrplot(cor(voronoi2 %>% select(ends_with("_1"), PVXY, PVY, PVX, PERXY, PERY, PERX, PvarXY, PvarY, PvarX), use="complete.obs"),
+#           hc.order = TRUE, 
+#           type = "lower",
+#           outline.col = "white", lab = TRUE)
+#corr_slope2 <- ggcorrplot(cor(voronoi2 %>% select(ends_with("_2"), PVXY, PVY, PVX, PERXY, PERY, PERX, PvarXY, #PvarY, PvarX), use="complete.obs"),
+#           hc.order = TRUE, 
+#           type = "lower",
+#           outline.col = "white", lab = TRUE)
+#corr_slope3 <- ggcorrplot(cor(voronoi2 %>% select(ends_with("_3"), PVXY, PVY, PVX, PERXY, PERY, PERX, PvarXY, #PvarY, PvarX), use="complete.obs"),
+#           hc.order = TRUE, 
+#           type = "lower",
+#           outline.col = "white", lab = TRUE)
+#corr_slope4 <- ggcorrplot(cor(voronoi2 %>% select(ends_with("_4"), PVXY, PVY, PVX, PERXY, PERY, PERX, PvarXY, #PvarY, PvarX), use="complete.obs"),
+#           hc.order = TRUE, 
+#           type = "lower",
+#           outline.col = "white", lab = TRUE)
+#corr_slope5 <- ggcorrplot(cor(voronoi2 %>% select(ends_with("_5"), PVXY, PVY, PVX, PERXY, PERY, PERX, PvarXY, #PvarY, PvarX), use="complete.obs"),
+#           hc.order = TRUE, 
+#           type = "lower",
+#           outline.col = "white", lab = TRUE)
+```
+
+```{r fig.width=7, fig.height=7}
+#corr_slope1 + corr_slope2 + corr_slope3 + corr_slope4 + corr_slope5 + plot_layout(ncol = 2, byrow = TRUE)
+```
+
+# Visualization
+
+```{r}
+palette <- leaflet::colorNumeric(
+  palette = "viridis", # or other RColorBrewer palettes e.g "Greens", "magma"
+  domain = voronoi2_sf$d_1
+)
+
+leaflet::leaflet(voronoi2_sf) |>
+    leaflet::addTiles() |>
+    leaflet::addProviderTiles(providers$Stamen.Toner) |>
+    leaflet::addPolygons(
+    label = ~d_1,
+    color = ~palette(d_1),
+    opacity = 0.7
+  ) |>
+  leaflet::addLegend(
+    "topleft",
+    pal = palette, 
+    values = ~d_1,
+    title = "D",
+    opacity = 0.7
+  ) |>
+    leaflet::addCircles(data = pollstations, color = "red", opacity = 1) %>% 
+    leaflet::setView(lng = 4.706, lat = 52.0153, zoom = 14)
+```
+
+```{r}
+
+palette1 <- leaflet::colorNumeric(
+  palette = "Reds",
+  domain = voronoi2_sf$PvarY
+)
+
+palette2 <- leaflet::colorNumeric(
+  palette = "Blues",
+  domain = voronoi2_sf$d_5
+)
+
+leaflet(voronoi2_sf) %>%
+  addMapPane("left", zIndex = 0) %>%
+  addMapPane("right", zIndex = 0) %>%
+  addProviderTiles(providers$Stamen.Toner, group="carto", layerId = "cartoid",
+                   options = pathOptions(pane = "right")) %>% 
+    addProviderTiles(providers$Stamen.Toner, group="carto", layerId = "baseid",
+                   options = pathOptions(pane = "left")) %>% 
+  addPolygons(
+    label = ~PvarY,
+    color = ~palette1(PvarY),
+    opacity = 0.7,
+    options = pathOptions(pane = "right"), group = "moran") %>% 
+   addPolygons(
+    label = ~d_5,
+    color = ~palette2(d_5),
+    opacity = 0.7,
+    options = pathOptions(pane = "left"), group = "d") %>% 
+  addCircles(data = pollstations, color = "red", opacity = 1, group = "pollstation") %>% 
+  setView(lng = 4.706, lat = 52.0153, zoom = 13) %>%
+  addLayersControl(overlayGroups = c("Pvar","pollstation", "d")) %>%
+  addSidebyside(layerId = "sidecontrols",
+                rightId = "cartoid",
+                leftId = "baseid")
+
+```
 
 
