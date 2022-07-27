@@ -315,8 +315,7 @@ suppressMessages(sf_use_s2(FALSE))
 rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = neighbShape)[,c(1:39, 78)]  # selecting only relevant columns
 
 # Adding postcode information:
-rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = postcode6Shape)[, c(1:40,
-    74)]  # selecting only relevant columns
+rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = postcode6Shape)[, c(1:40, 74)]  # selecting only relevant columns
 
 # We now have the 6-digits postcodes; the 4- and 5- digits postcodes then are:
 rast$PC5 <- substr(rast$PC6, start = 1, stop = 5)
@@ -325,7 +324,7 @@ rast$PC4 <- substr(rast$PC6, start = 1, stop = 4)
 
 ## Loading pollstations data as sf
 
-```{r, cache=TRUE}
+```{r}
 pollstations <- sf::st_as_sf(x = as.data.frame(pollstations), crs = sf::st_crs("+proj=longlat +datum=WGS84"),
     coords = c("long", "lat"))
 ```
@@ -333,14 +332,21 @@ pollstations <- sf::st_as_sf(x = as.data.frame(pollstations), crs = sf::st_crs("
 ## Creating voronoi polygons (entire country)
 
 ```{r voro}
-voronoi <- sf::st_voronoi(x = pollstations %>% st_combine(), envelope = NULL  # this is in case we want to specify the Voronoi boundaries
-)
+voronoi <- sf::st_voronoi(x = pollstations %>% st_combine(), envelope = NULL)
 
 # This ensures that 'voronoi' has the correct CRS
 voronoi <- sf::st_sf(sf::st_collection_extract(voronoi, type = "POLYGON"), crs = sf::st_crs("+proj=longlat +datum=WGS84"))
 
 # This will be the 'id' of each Voronoi tile:
 voronoi$voronoi <- 1:nrow(voronoi)
+
+```
+
+## Assign raster cells to their Voronoi tile (enire country)
+
+```{r}
+sf::sf_use_s2(FALSE)
+rast <- sf::st_intersection(x = rast, y = voronoi) # removed st_as_sf fixed the issue
 ```
 
 ## Subsetting raster with our selected city
@@ -351,12 +357,6 @@ cityrast <- rast[cityrast_id, ]
 #plot(cityrast)
 ```
 
-
-## Assign raster cells to their Voronoi tile (enire country)
-
-```{r, cache=TRUE}
-rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = voronoi)
-```
 
 ## Visualization
 
@@ -587,13 +587,11 @@ get_scores_seg_pol <- function(tslope) {
 
 ```
 
-```{r}
-map_dfr(slopes, get_scores_seg_pol) %>% filter(-0.2>=cor)
-```
+## Correlations
 
 ```{r}
 correlations <- map_dfr(slopes, get_scores_seg_pol) 
-correlations
+correlations %>% arrange(cor)
 ```
 
 
@@ -624,7 +622,7 @@ correlations
 #corr_slope1 + corr_slope2 + corr_slope3 + corr_slope4 + corr_slope5 + plot_layout(ncol = 2, byrow = TRUE)
 ```
 
-# Visualization
+# Visualization of d segregation in Gouda
 
 ```{r}
 palette <- leaflet::colorNumeric(
@@ -651,6 +649,8 @@ leaflet::leaflet(voronoi2_sf) |>
     leaflet::setView(lng = 4.706, lat = 52.0153, zoom = 14)
 ```
 
+## d segregation and pvar polarization measures in Gouda
+
 ```{r}
 
 palette1 <- leaflet::colorNumeric(
@@ -674,7 +674,7 @@ leaflet(voronoi2_sf) %>%
     label = ~PvarY,
     color = ~palette1(PvarY),
     opacity = 0.7,
-    options = pathOptions(pane = "right"), group = "moran") %>% 
+    options = pathOptions(pane = "right"), group = "polarizacion") %>% 
    addPolygons(
     label = ~d_5,
     color = ~palette2(d_5),
@@ -682,7 +682,7 @@ leaflet(voronoi2_sf) %>%
     options = pathOptions(pane = "left"), group = "d") %>% 
   addCircles(data = pollstations, color = "red", opacity = 1, group = "pollstation") %>% 
   setView(lng = 4.706, lat = 52.0153, zoom = 13) %>%
-  addLayersControl(overlayGroups = c("Pvar","pollstation", "d")) %>%
+  addLayersControl(overlayGroups = c("polarizacion","pollstation", "d")) %>%
   addSidebyside(layerId = "sidecontrols",
                 rightId = "cartoid",
                 leftId = "baseid")

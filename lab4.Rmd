@@ -8,7 +8,6 @@ output:
     toc:  true
     toc_float: true
     number_sections: false
- 
 ---
 
 ```{r include=FALSE}
@@ -316,8 +315,7 @@ tc <- c(0.6, 0.7, 0.8)
 pg <- c(0.5, 0.6, 0.7)
 ```
 
-
-```{r eval=FALSE} 
+```{r eval=FALSE}
 
 # run the loop in parallel
 n.cores <- parallel::detectCores() - 2 #save one core for other work
@@ -514,6 +512,8 @@ dataworldsN1 <- foreach(Nsim = N, i = icount(), .combine = "rbind") %:% foreach(
 fsave(dataworldsN1, "SegWorlds")
 ```
 
+# World 1 (n=300)
+
 ```{r}
 load("./data/processed/20220712SegWorlds")
 worlds <- x
@@ -561,5 +561,6 @@ graticule = st_transform(graticule, robinson)
 }
 ```
 
-
-
+```{r}
+worlds %>% filter(N==300)
+```

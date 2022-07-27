@@ -1,0 +1,304 @@
+---
+title: "Journal 6"
+#bibliography: references.bib
+author: "Rob Salas"
+output: 
+  html_document:
+    css: tweaks.css
+    toc:  true
+    toc_float: true
+    number_sections: false
+---
+
+```{r}
+fsave <- function(x, file, location = "./data/processed/", ...) {
+    if (!dir.exists(location))
+        dir.create(location)
+    datename <- substr(gsub("[:-]", "", Sys.time()), 1, 8)
+    totalname <- paste(location, datename, file, sep = "")
+    print(paste("SAVED: ", totalname, sep = ""))
+    save(x, file = totalname)
+}
+
+fpackage.check <- function(packages) {
+    lapply(packages, FUN = function(x) {
+        if (!require(x, character.only = TRUE)) {
+            install.packages(x, dependencies = TRUE)
+            library(x, character.only = TRUE)
+        }
+    })
+}
+
+colorize <- function(x, color) {
+    sprintf("<span style='color: %s;'>%s</span>", color, x)
+}
+```
+
+```{r echo=FALSE}
+packages = c("sf", "ggplot2", "ggmap", "leaflet","tmap", "basemapR")
+
+fpackage.check(packages)
+```
+
+```{r}
+# Loading 100m-by-100m raster data:
+rast <- sf::st_read(dsn = "./data/rawGIS/cbs_vk100_2021_v1.gpkg")
+
+
+# Next we load the shapefile of the administrative neighbourhoods ('buurt') and districts ('wijk'):
+neighbShape <- sf::st_read(dsn = "./data/rawGIS", layer = "buurt_2021_v1")
+districtShape <- sf::st_read(dsn = "./data/rawGIS", layer = "wijk_2021_v1")
+# ... And then the zipcode shapes:
+postcode4Shape <- sf::st_read(dsn = "./data/rawGIS", layer = "CBS_pc4_2020_v1")
+postcode5Shape <- sf::st_read(dsn = "./data/rawGIS", layer = "CBS_pc5_2020_v1")
+postcode6Shape <- sf::st_read(dsn = "./data/rawGIS", layer = "CBS_pc6_2020_v1")
+```
+
+```{r}
+# If we want to remove them:
+rast <- rast[rast$aantal_inwoners != -99997, ]
+
+# If we want to replace -99997 with an arbitrary integer in [1,4]:
+# rast$aantal_inwoners[rast$aantal_inwoners == -99997] <- 2
+
+# If we want to replace -99997 with NA: rast$aantal_inwoners[rast$aantal_inwoners == -99997] <- NA
+```
+
+
+```{r}
+rast <- sf::st_transform(x = rast, crs = sf::st_crs("+proj=longlat +datum=WGS84"))
+
+rast <- sf::st_centroid(rast)
+```
+
+```{r}
+neighbShape <- sf::st_transform(x = neighbShape, crs = sf::st_crs("+proj=longlat +datum=WGS84"))
+districtShape <- sf::st_transform(x = districtShape, crs = sf::st_crs("+proj=longlat +datum=WGS84"))
+postcode4Shape <- sf::st_transform(x = postcode4Shape, crs = sf::st_crs("+proj=longlat +datum=WGS84"))
+postcode5Shape <- sf::st_transform(x = postcode5Shape, crs = sf::st_crs("+proj=longlat +datum=WGS84"))
+postcode6Shape <- sf::st_transform(x = postcode6Shape, crs = sf::st_crs("+proj=longlat +datum=WGS84"))
+```
+
+```{r}
+city <- "Gouda"
+shape <- districtShape[districtShape$GM_NAAM == city,]
+shape$color <- sample(rainbow(n = nrow(shape), alpha = 1)) 
+
+# Specifying a "blank" theme for our ggplot visualisation:
+mapTheme <- ggplot2::theme(
+    legend.position = "bottom",
+    panel.border = element_blank(),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank()
+  )
+
+plot <- ggplot() +
+  base_map(st_bbox(shape), increase_zoom = 2, basemap = 'positron') +
+  geom_sf(data = shape, aes(fill = color), alpha = .7) +
+  guides(fill = FALSE) + 
+  mapTheme
+
+plot
+
+```
+
+```{r}
+
+
+# Overlaying the district shapes:
+#plot <- ggmap(mapTiles, darken = c(0.8, "white")) +
+#ggtitle(city) + 
+#  geom_sf(
+#    data = shape, 
+#    aes(fill = WK_NAAM),
+#    color = "black",
+#    alpha = 0.5,
+#    inherit.aes = FALSE
+#  ) +
+#  coord_sf(datum = NA)
+
+
+#print(plot + mapTheme + theme(legend.position = "none"))
+```
+
+```{r}
+# 
+labels <- sf::st_centroid(shape) |> sf::st_coordinates() |> as.data.frame()
+labels$label <- shape$WK_NAAM
+plotlabels <- geom_text(
+  data = labels,
+  #position = position_dodge2(0.1), # option to reduce overplotting
+  aes(x = X, y = Y, label = label)
+)
+print(plot + plotlabels + mapTheme + theme(legend.position = "none"))
+```
+
+```{r}
+city <- "Rotterdam"
+shape <- subset(
+  districtShape,
+  districtShape$GM_NAAM == city & districtShape$AANT_INW >= 0 # removes NA's
+)
+
+tm_shape(shape) + 
+  tm_fill(col="AANT_INW", title = "Population", id="WK_NAAM", style="jenks")
+
+```
+
+```{r}
+zoom = 12 # Higher values give more detailed basemaps. 12-15 usually suffice.
+coords <- as.data.frame(sf::st_coordinates(shape))
+mapTiles <- ggmap::get_stamenmap(
+    bbox = c(
+      left = min(coords$X),
+      bottom = min(coords$Y),
+      right = max(coords$X),
+      top = max(coords$Y)),
+    maptype = "toner-background",
+    crop = FALSE, zoom = zoom
+  )
+mapTheme <- ggplot2::theme(
+    legend.position = "left",
+    panel.border = element_blank(),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank()
+  )
+ggmap(mapTiles, darken = c(0.8, "white")) +
+  ggtitle(city) + 
+  geom_sf(
+    data = shape, 
+    aes(fill = AANT_INW),#, label = WK_NAAM),
+    color = NA,
+    alpha = 0.5,
+    inherit.aes = FALSE
+  ) +
+  scale_fill_viridis_c() +
+  labs(fill = "Population") +
+  coord_sf(datum = NA) +
+  mapTheme
+```
+
+```{r}
+suppressMessages(sf_use_s2(FALSE))
+
+# Adding administrative area information:
+rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = neighbShape)[, c(1:39, 78)]  # selecting only relevant columns
+
+# Adding postcode information:
+rast <- sf::st_intersection(x = sf::st_as_sf(rast), y = postcode6Shape)[, c(1:40,74)]  # selecting only relevant columns
+
+# We now have the 6-digits postcodes; the 4- and 5- digits postcodes then are:
+rast$PC5 <- substr(rast$PC6, start = 1, stop = 5)
+rast$PC4 <- substr(rast$PC6, start = 1, stop = 4)
+```
+
+```{r}
+fsave(rast, compress = TRUE, file = "raster.RData")
+```
+
+```{r}
+# Loading the file
+load("./data/processed/20220712raster.RData")  # Make sure filename is correct!
+rast <- x
+rm(x)
+```
+
+```{r}
+# Plotting the raster of a city:
+city = "Rotterdam"
+cityrast <- rast[rast$GM_NAAM == city,]
+
+palette <- leaflet::colorFactor(
+  palette = "Set3", # or other RColorBrewer palettes e.g "Greens", "magma"
+  domain = cityrast$BU_NAAM
+)
+leaflet::leaflet(cityrast) |>
+  leaflet::addTiles() |>
+  leaflet::addProviderTiles(providers$Stamen.Toner) |>
+  leaflet::addCircles(
+    label = ~BU_NAAM,
+    color = ~palette(BU_NAAM),
+    opacity = 0.7
+  )
+```
+
+```{r}
+load("./data/processed/20220708polling_df")
+pollstations <- x
+rm(x)
+
+load("./data/processed/20220712raster.RData")
+rast <- x
+rm(x)
+
+```
+
+```{r}
+pollstations <- sf::st_geometry(sf::st_as_sf(x = as.data.frame(pollstations), crs = sf::st_crs("+proj=longlat +datum=WGS84"),
+    coords = c("long", "lat")))
+# head(pollstations) #just some points, the coordinates of the polling stations
+```
+
+```{r}
+voronoi <- sf::st_voronoi(x = pollstations %>% st_combine(), envelope = NULL)
+
+#This ensures that 'voronoi' has the correct CRS
+voronoi <- sf::st_sf(
+  sf::st_collection_extract(voronoi, type = "POLYGON"),
+  crs = sf::st_crs("+proj=longlat +datum=WGS84")
+)
+
+#This will be the "id" of each Voronoi tile:
+voronoi$voronoi <- 1:nrow(voronoi) 
+```
+
+```{r}
+leaflet::leaflet(voronoi) |>
+  leaflet::addTiles() |>
+  leaflet::addProviderTiles(providers$Stamen.Toner) |>
+  leaflet::addPolygons(color = "blue") |>
+  leaflet::addCircles(data = pollstations, color = "red") |>
+  leaflet::setView( # This defaults the map view so that it points to Amsterdam
+    lng = 4.9041,
+    lat = 52.3676,
+    zoom = 14
+  )
+```
+
+```{r}
+
+suppressMessages(sf_use_s2(FALSE))
+
+rast <- sf::st_intersection(x = rast, y = voronoi)
+
+city = "Rotterdam"
+cityrast <- rast[rast$GM_NAAM == city, ]
+
+palette <- leaflet::colorFactor(sample(colors(), length(unique(cityrast$voronoi))), domain = cityrast$voronoi)
+
+leaflet::leaflet(voronoi) |>
+    leaflet::addTiles() |>
+    leaflet::addProviderTiles(providers$Stamen.Toner) |>
+    leaflet::addPolygons(color = "blue") |>
+    leaflet::addCircles(data = pollstations, color = "red", opacity = 1) |>
+    leaflet::addCircles(data = cityrast, label = ~voronoi, color = ~palette(as.factor(voronoi)), opacity = 0.7) |>
+    leaflet::setView(lng = 4.9041, lat = 52.3676, zoom = 14)
+```
+
+```{r}
+fsave(rast, compress = TRUE, file = "raster_vor.RData")
+
+```
+
+```{r}
+neighbShape <- neighbShape[, c(1, 2, 42:44)]
+districtShape <- districtShape[, c(1:4, 39:41)]
+postcode4Shape <- postcode4Shape[, c(1, 37)]
+postcode5Shape <- postcode5Shape[, c(1, 37)]
+postcode6Shape <- postcode6Shape[, c(1, 35)]
+fsave(list(neighbShape, districtShape, postcode4Shape, postcode5Shape, postcode6Shape, voronoi), compress = TRUE,
+    file = "shapes.RData")
+```
+

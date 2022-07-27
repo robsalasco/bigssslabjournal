@@ -21,7 +21,13 @@ navbar:
       - text: "Benchmarking"
         href: benchmarking.html
       - text: "Day 4"
-        href: lab4.html   
+        href: lab4.html 
+      - text: "Day 5"
+        href: lab5.html  
+      - text: "Day 6"
+        href: lab6.html  
+      - text: "Presentation"
+        href: presentation.html  
 
   right:
   - icon: fab fa-github

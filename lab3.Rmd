@@ -224,7 +224,7 @@ library(tidyr)
 
 postcodes <- read_delim("data/postcode_NL.csv", 
                         delim = ";",
-                        col_select = c(2,6,7,9,10,14),
+                        col_select = c(2,6,7,9,10,14) ,
                         col_names = FALSE) %>% 
   rename(postalcode=X2, from=X6, to=X7, address=X9, city=X10, province=X14)
 
